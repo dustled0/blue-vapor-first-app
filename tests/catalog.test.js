@@ -35,7 +35,7 @@ test('titleCase', () => {
 
 test('build with no changes sorts categories, Other Products last', () => {
     const b = Catalog.build(base, Catalog.emptyChanges());
-    assert.deepEqual(cats(b.products), ['Cigarettes', 'Drinks', 'Hot Water', 'Other Products']);
+    assert.deepEqual(cats(b.products), ['Cigarettes', 'Hot Water', 'Drinks', 'Other Products']);
     assert.deepEqual(b.hotWater, ['Milo']);
     assert.deepEqual(b.info, {});
 });
@@ -43,7 +43,7 @@ test('build with no changes sorts categories, Other Products last', () => {
 test('added product with new category sorts before Other Products', () => {
     const c = Catalog.addProducts(base, Catalog.emptyChanges(), [piattos]);
     const b = Catalog.build(base, c);
-    assert.deepEqual(cats(b.products), ['Cigarettes', 'Drinks', 'Hot Water', 'Snacks', 'Other Products']);
+    assert.deepEqual(cats(b.products), ['Cigarettes', 'Hot Water', 'Drinks', 'Snacks', 'Other Products']);
     assert.equal(b.info.Piattos, 'added');
 });
 
@@ -190,4 +190,25 @@ test('toDataJs round-trips and keeps layout', () => {
     assert.deepEqual(out.CUSTOMERS, input.customers);
     assert.equal(out.HOT_WATER_FEE, 5);
     assert.deepEqual(out.HOT_WATER_FEE_OVERRIDES, { Milo: 2 });
+});
+
+test('toDataJs round-trips the real data.js category order', () => {
+    const fs = require('node:fs');
+    const text = fs.readFileSync(require('node:path').join(__dirname, '..', 'data.js'), 'utf8');
+    const d = new Function(text + '; return {products: PRODUCTS, hotWater: HOT_WATER_PRODUCTS, customers: CUSTOMERS, fee: HOT_WATER_FEE, overrides: HOT_WATER_FEE_OVERRIDES};')();
+    const src = Catalog.toDataJs(d);
+    const out = new Function(src + '; return {PRODUCTS, HOT_WATER_PRODUCTS, CUSTOMERS, HOT_WATER_FEE, HOT_WATER_FEE_OVERRIDES};')();
+    assert.deepEqual(cats(out.PRODUCTS), cats(d.products));
+    assert.deepEqual(cats(out.PRODUCTS)[0], 'Cigarettes');
+    assert.equal(cats(out.PRODUCTS).at(-1), 'Other Products');
+    assert.deepEqual(out.HOT_WATER_PRODUCTS, d.hotWater);
+    assert.deepEqual(out.CUSTOMERS, d.customers);
+});
+
+test('new categories go after base categories, before Other Products', () => {
+    const sorted = Catalog.sortProducts([
+        { name: 'x', price: 1, category: 'Zed' }, { name: 'y', price: 1, category: 'Other Products' },
+        { name: 'z', price: 1, category: 'Alpha' }, { name: 'w', price: 1, category: 'drinks' }
+    ], ['Cigarettes', 'Drinks']);
+    assert.deepEqual(sorted.map(p => p.name), ['w', 'z', 'x', 'y']);
 });

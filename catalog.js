@@ -31,16 +31,30 @@
         return { added: [], edited: {}, removed: [] };
     }
 
-    function compareCategory(a, b) {
-        if (a === b) return 0;
-        if (a === OTHER) return 1;
-        if (b === OTHER) return -1;
-        return titleCase(a).localeCompare(titleCase(b));
+    function firstAppearance(list) {
+        const out = [];
+        list.forEach(p => { if (!out.includes(p.category)) out.push(p.category); });
+        return out;
     }
 
-    function sortProducts(list) {
+    function sortProducts(list, categoryOrder) {
+        const order = new Map();
+        (categoryOrder || firstAppearance(list)).forEach(c => {
+            const k = titleCase(c).toLowerCase();
+            if (!order.has(k)) order.set(k, order.size);
+        });
+        const rank = c => {
+            const k = titleCase(c).toLowerCase();
+            if (k === OTHER.toLowerCase()) return Infinity;
+            return order.has(k) ? order.get(k) : 1e9;
+        };
+        const cmpCat = (a, b) => {
+            const ra = rank(a), rb = rank(b);
+            if (ra !== rb) return ra < rb ? -1 : 1;
+            return ra === 1e9 ? titleCase(a).localeCompare(titleCase(b)) : 0;
+        };
         return list.slice().sort((a, b) =>
-            compareCategory(a.category, b.category) || a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+            cmpCat(a.category, b.category) || a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
     }
 
     function clone(changes) {
@@ -110,7 +124,7 @@
             if (e) info[p.name] = 'edited';
         });
         pruned.added.forEach(a => { put(a); info[a.name] = 'added'; });
-        const sorted = sortProducts(products);
+        const sorted = sortProducts(products, firstAppearance(base.products));
         const hwSet = new Set(hotWater);
         return {
             products: sorted,
@@ -221,7 +235,7 @@
             for (let i = 0; i < items.length; i += perLine) lines.push('    ' + items.slice(i, i + perLine).map(q).join(', '));
             return lines.join(',\n');
         };
-        const sorted = sortProducts(data.products);
+        const sorted = sortProducts(data.products, data.categoryOrder);
         const out = [
             '// ============ DATA ============',
             '// Edit this file to add/remove products and customers.',
