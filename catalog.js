@@ -180,9 +180,77 @@
         return changes.added.length + Object.keys(changes.edited).length + changes.removed.length;
     }
 
+    function parsePaste(text, products, hotWater) {
+        const hw = new Set(hotWater);
+        const existing = new Map();
+        products.forEach(p => existing.set(nameKey(p.name), { price: p.price, category: titleCase(p.category), hotWater: hw.has(p.name) }));
+        const seen = new Set();
+        const rows = [];
+        String(text == null ? '' : text).split(/\r?\n/).forEach((raw, i) => {
+            if (!raw.trim()) return;
+            const cells = (raw.includes('\t') ? raw.split('\t') : raw.split(',')).map(c => c.trim());
+            const name = cleanName(cells[0]);
+            const price = parsePrice(cells[1]);
+            const category = cells[2] ? titleCase(cells[2]) : OTHER;
+            const hot = /^hw$/i.test(cells[3] || '');
+            const row = { line: i + 1, raw, name, price, category, hotWater: hot, status: 'new' };
+            if (!name) { row.status = 'problem'; row.reason = 'Missing name'; }
+            else if (price === null) { row.status = 'problem'; row.reason = 'Price must be a number above 0'; }
+            else if (seen.has(nameKey(name))) { row.status = 'problem'; row.reason = 'Listed twice'; }
+            else {
+                seen.add(nameKey(name));
+                const cur = existing.get(nameKey(name));
+                if (cur) {
+                    const diff = {};
+                    if (cur.price !== price) diff.price = price;
+                    if (cur.category.toLowerCase() !== category.toLowerCase()) diff.category = category;
+                    if (cur.hotWater !== hot) diff.hotWater = hot;
+                    if (Object.keys(diff).length) { row.status = 'exists'; row.diff = diff; }
+                    else row.status = 'same';
+                }
+            }
+            rows.push(row);
+        });
+        return rows;
+    }
+
+    function toDataJs(data) {
+        const q = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+        const wrap = (items, perLine) => {
+            const lines = [];
+            for (let i = 0; i < items.length; i += perLine) lines.push('    ' + items.slice(i, i + perLine).map(q).join(', '));
+            return lines.join(',\n');
+        };
+        const sorted = sortProducts(data.products);
+        const out = [
+            '// ============ DATA ============',
+            '// Edit this file to add/remove products and customers.',
+            '// Products are displayed in the order listed here.',
+            '// Each product has a category — used to display section headers in the UI.',
+            '',
+            'const HOT_WATER_PRODUCTS = [',
+            wrap(data.hotWater, 5),
+            '];',
+            '',
+            'const PRODUCTS = ['
+        ];
+        let last = null;
+        sorted.forEach(p => {
+            if (p.category !== last) { out.push('    // ' + p.category + ' (A-Z)'); last = p.category; }
+            out.push('    { name: ' + q(p.name) + ', price: ' + p.price + ', category: ' + q(p.category) + ' },');
+        });
+        out.push('];', '', '// Customers (A-Z)', 'const CUSTOMERS = [', wrap(data.customers, 8), '];', '',
+            'const HOT_WATER_FEE = ' + data.fee + ';',
+            '// Products whose hot water fee differs from HOT_WATER_FEE',
+            'const HOT_WATER_FEE_OVERRIDES = { ' + Object.keys(data.overrides).map(k => q(k) + ': ' + data.overrides[k]).join(', ') + ' };',
+            '');
+        return out.join('\n');
+    }
+
     const Catalog = {
         cleanName, nameKey, parsePrice, titleCase, emptyChanges, sortProducts,
-        build, addProducts, editProduct, removeProduct, restoreProduct, resetProduct, changeCount
+        build, addProducts, editProduct, removeProduct, restoreProduct, resetProduct, changeCount,
+        parsePaste, toDataJs
     };
     if (typeof module !== 'undefined') module.exports = Catalog;
     else window.Catalog = Catalog;

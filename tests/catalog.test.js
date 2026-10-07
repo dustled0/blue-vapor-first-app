@@ -130,3 +130,63 @@ test('inputs are not mutated', () => {
 test('changeCount', () => {
     assert.equal(Catalog.changeCount({ added: [{}], edited: { a: {} }, removed: ['b'] }), 3);
 });
+
+test('parsePaste parses lines, tabs, blanks and hot water flag', () => {
+    const rows = Catalog.parsePaste('Piattos, 15, Snacks\r\nNova\t₱15\tsnacks\r\n\r\n  \r\nKopiko Blanca, 10, Hot Water, HW\r\n', base.products, base.hotWater);
+    assert.equal(rows.length, 3);
+    assert.deepEqual(rows.map(r => r.status), ['new', 'new', 'new']);
+    assert.equal(rows[1].category, 'Snacks');
+    assert.equal(rows[2].hotWater, true);
+    assert.deepEqual(rows.map(r => r.line), [1, 2, 5]);
+});
+
+test('parsePaste defaults category to Other Products', () => {
+    const [a, b] = Catalog.parsePaste('Chippy, 12\nChippy2, 12,', base.products, base.hotWater);
+    assert.equal(a.category, 'Other Products');
+    assert.equal(b.category, 'Other Products');
+    assert.equal(b.status, 'new');
+});
+
+test('parsePaste detects existing and same products', () => {
+    const [a, b] = Catalog.parsePaste('winston, 12, Cigarettes\nWINSTON, 11, cigarettes', base.products, base.hotWater);
+    assert.equal(a.status, 'exists');
+    assert.deepEqual(a.diff, { price: 12 });
+    assert.equal(b.status, 'same');
+});
+
+test('parsePaste compares hot water against the base list', () => {
+    const [a] = Catalog.parsePaste('Milo, 10, Hot Water', base.products, base.hotWater);
+    assert.equal(a.status, 'exists');
+    assert.deepEqual(a.diff, { hotWater: false });
+});
+
+test('parsePaste reports problems', () => {
+    const rows = Catalog.parsePaste(', 10, Snacks\nChips, abc\nChips\nDup, 5\ndup, 6', base.products, base.hotWater);
+    assert.deepEqual(rows.map(r => r.status), ['problem', 'problem', 'problem', 'new', 'problem']);
+    assert.equal(rows[0].reason, 'Missing name');
+    assert.equal(rows[1].reason, 'Price must be a number above 0');
+    assert.equal(rows[2].reason, 'Price must be a number above 0');
+    assert.equal(rows[4].reason, 'Listed twice');
+});
+
+test('toDataJs round-trips and keeps layout', () => {
+    const input = {
+        products: [
+            { name: 'Piattos', price: 15.5, category: 'Snacks' },
+            { name: "Mang Tomas's", price: 10, category: 'Other Products' },
+            { name: 'Winston', price: 11, category: 'Cigarettes' },
+            { name: 'Milo', price: 10, category: 'Hot Water' }
+        ],
+        hotWater: ['Milo'], customers: ['Ana', "O'Neil"], fee: 5, overrides: { Milo: 2 }
+    };
+    const src = Catalog.toDataJs(input);
+    assert.ok(src.startsWith('// ============ DATA ============'));
+    assert.ok(src.includes('// Snacks (A-Z)'));
+    assert.ok(src.includes('const PRODUCTS'));
+    const out = new Function(src + '; return {PRODUCTS, HOT_WATER_PRODUCTS, CUSTOMERS, HOT_WATER_FEE, HOT_WATER_FEE_OVERRIDES};')();
+    assert.deepEqual(out.PRODUCTS, Catalog.sortProducts(input.products));
+    assert.deepEqual(out.HOT_WATER_PRODUCTS, ['Milo']);
+    assert.deepEqual(out.CUSTOMERS, input.customers);
+    assert.equal(out.HOT_WATER_FEE, 5);
+    assert.deepEqual(out.HOT_WATER_FEE_OVERRIDES, { Milo: 2 });
+});
