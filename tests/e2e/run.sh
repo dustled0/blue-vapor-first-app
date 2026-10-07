@@ -14,8 +14,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-(cd "$ROOT" && python3 -m http.server 8765 --bind 0.0.0.0 >/dev/null 2>&1 &) 
-SERVER_PID=$(pgrep -f "http.server 8765" | head -1)
+cd "$ROOT"
+python3 -m http.server 8765 --bind 0.0.0.0 >/dev/null 2>&1 &
+SERVER_PID=$!
 ("/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --remote-debugging-port=9333 --remote-allow-origins=* --user-data-dir='C:\Windows\Temp\hs-e2e-profile' about:blank >/dev/null 2>&1 &)
 
 for _ in $(seq 1 30); do curl -sf localhost:8765/index.html >/dev/null && break; sleep 0.5; done

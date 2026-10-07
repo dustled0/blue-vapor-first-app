@@ -30,6 +30,9 @@ const { withPage, check, finish, URL } = require('./helpers');
         const toast = await page.locator('#toast').textContent();
         check('corrupt data toast', toast.includes('could not be read'), toast);
 
+        const backup = await page.evaluate(() => localStorage.getItem('honesty-store-catalog-corrupt-backup'));
+        check('corrupt value backed up', backup === '{not json', String(backup));
+
         await page.evaluate(() => localStorage.removeItem('honesty-store-catalog'));
         await page.reload();
         await page.evaluate(() => commitCatalog(Catalog.addProducts(BASE_CATALOG, catalogChanges, [{ name: 'Nova', price: 15, category: 'Snacks', hotWater: false }]), 'Added Nova'));

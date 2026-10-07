@@ -2576,6 +2576,9 @@ function loadCatalog() {
         catalogChanges = c;
     } catch (e) {
         catalogCorrupt = true;
+        // Keep the unreadable value (it may be recoverable); applyCatalog leaves the stored key alone
+        const BACKUP_KEY = `${CATALOG_KEY}-corrupt-backup`;
+        if (localStorage.getItem(BACKUP_KEY) === null) localStorage.setItem(BACKUP_KEY, raw);
     }
 }
 
@@ -2587,13 +2590,14 @@ function applyCatalog() {
     catalogChanges = built.changes;
     catalogInfo = built.info;
     catalogRemoved = built.removedBase;
-    if (Catalog.changeCount(catalogChanges) === 0) localStorage.removeItem(CATALOG_KEY);
+    if (Catalog.changeCount(catalogChanges) === 0) { if (!catalogCorrupt) localStorage.removeItem(CATALOG_KEY); }
     else localStorage.setItem(CATALOG_KEY, JSON.stringify(catalogChanges));
 }
 
 function commitCatalog(newChanges, message) {
     const prev = catalogChanges;
     catalogChanges = newChanges;
+    catalogCorrupt = false;
     applyCatalog();
     renderAll();
     filterProducts();
