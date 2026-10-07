@@ -2,8 +2,8 @@
 // App files (index.html, data.js, ...) are network-first so edits show up right away,
 // with the cached copy used when offline. Fonts and the Excel library come from CDNs
 // and are cache-first, since their URLs never change.
-const CACHE = 'honesty-store-v1';
-const APP_FILES = ['./', './index.html', './data.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
+const CACHE = 'honesty-store-v2';
+const APP_FILES = ['./', './index.html', './data.js', './catalog.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
     event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_FILES)).then(() => self.skipWaiting()));

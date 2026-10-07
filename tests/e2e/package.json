@@ -1,0 +1,6 @@
+{
+  "name": "honesty-store-e2e",
+  "private": true,
+  "description": "Browser tests, run with tests/e2e/run.sh",
+  "dependencies": { "playwright": "1" }
+}

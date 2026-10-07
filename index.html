@@ -13,6 +13,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="data.js"></script>
+    <script src="catalog.js"></script>
     <style>
         /*
          * Shape rule: cards 12px, modals 16px, controls 8px, chips / tags / search full pill.
@@ -2106,6 +2107,63 @@
         body.calm-mode .page-water .pw-light,
         body.calm-mode .page-water .pw-wave { animation: none !important; }
 
+        /* ===== PRODUCTS MODAL ===== */
+        .products-modal { max-width: 900px; }
+        .products-modal .modal-body { padding-bottom: 12px; }
+        .products-search { width: 100%; margin-bottom: 14px; }
+        .prow-cat { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); margin: 16px 0 6px; }
+        .prow {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 84px 160px 34px 34px;
+            gap: 10px;
+            align-items: center;
+            padding: 8px 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        .prow-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+        .prow .input-field { width: 100%; min-width: 0; padding: 6px 8px; font-size: 0.85rem; }
+        .prow .prow-price { font-family: var(--mono); text-align: right; }
+        .prow-hw { width: 18px; height: 18px; justify-self: center; accent-color: var(--hot-water); cursor: var(--cursor-drop); }
+        .prow-tag { font-size: 0.66rem; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-full); background: var(--primary-light); color: var(--primary); }
+        .prow-tag.added { background: var(--success-light); color: var(--success); }
+        .prow-reset { border: 0; background: none; padding: 0; font: inherit; font-size: 0.74rem; color: var(--primary); text-decoration: underline; cursor: var(--cursor-drop); }
+        .prow-del, .prow-restore { cursor: var(--cursor-drop); }
+        .prow-del { border: 0; background: none; color: var(--text-secondary); border-radius: var(--radius-sm); padding: 4px; display: inline-flex; justify-content: center; }
+        .prow-del:hover { color: var(--danger); background: var(--danger-light); }
+        .add-one, .add-many { display: flex; flex-direction: column; gap: 6px; max-width: 460px; }
+        .add-label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-top: 8px; }
+        .add-price { font-family: var(--mono); }
+        .add-msg { font-size: 0.8rem; color: var(--danger); min-height: 1.1em; }
+        .add-msg a { color: var(--primary); text-decoration: underline; cursor: var(--cursor-drop); }
+        .add-hw { display: flex; align-items: center; gap: 8px; margin: 8px 0; cursor: var(--cursor-drop); }
+        .add-hw input { accent-color: var(--hot-water); }
+        .add-one .btn, .add-many .btn { align-self: flex-start; margin-top: 8px; }
+        .add-many { max-width: none; }
+        .add-help { font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 4px; }
+        #pasteBox { width: 100%; font-family: var(--mono); font-size: 0.85rem; resize: vertical; }
+        .paste-scroll { max-height: 280px; overflow: auto; margin-top: 8px; }
+        .paste-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .paste-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .paste-line { color: var(--text-secondary); font-family: var(--mono); width: 28px; }
+        .paste-status { font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full); white-space: nowrap; }
+        .st-new { background: var(--success-light); color: var(--success); }
+        .st-exists { background: var(--primary-light); color: var(--primary); }
+        .st-same { background: var(--bg); color: var(--text-secondary); }
+        .st-problem { background: var(--danger-light); color: var(--danger); }
+        .paste-upd { display: flex; gap: 6px; align-items: center; font-family: var(--mono); cursor: var(--cursor-drop); }
+        .prow-removed { margin-top: 18px; }
+        .prow-removed summary { cursor: var(--cursor-drop); font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); }
+        .prow-removed .prow { grid-template-columns: minmax(0, 1fr) auto; opacity: 0.85; }
+        .products-footer { position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 12px 24px; font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .products-footer a { color: var(--primary); font-weight: 600; text-decoration: underline; cursor: var(--cursor-drop); }
+        .products-footer[hidden] { display: none; }
+        @media (max-width: 600px) {
+            .prow { grid-template-columns: minmax(0, 1fr) 76px 34px 34px; }
+            .prow-name { grid-column: 1 / -1; }
+            .prow select.input-field { grid-column: 1 / 3; }
+            .products-footer { padding: 10px 16px; }
+        }
+
         /* ===== RESPONSIVE ===== */
 
         /* Tablet */
@@ -2128,6 +2186,7 @@
         /* Mobile */
         @media (max-width: 480px) {
             /* Phone header: Summary, History and a More menu for everything else */
+            .header-actions > .btn-products,
             .header-actions > .btn-warning,
             .header-actions > .btn-success,
             .header-actions > .btn-new,
@@ -2310,6 +2369,7 @@
             <button class="btn btn-outline" onclick="toggleAllProducts()" id="toggleAllBtn" hidden><span class="icon icon-sm">unfold_more</span> Expand</button>
             <button class="btn btn-primary" onclick="showSummary()"><span class="icon icon-sm">receipt_long</span> Summary</button>
             <button class="btn btn-outline btn-history" onclick="showHistory()"><span class="icon icon-sm">history</span> History</button>
+            <button class="btn btn-outline btn-products" onclick="openProducts()"><span class="icon icon-sm">inventory_2</span> Products</button>
             <button class="btn btn-autosave autosave-off" id="autoSaveBtn" onclick="onAutoSaveClick()" hidden><span class="icon icon-sm">save</span> Auto-save</button>
             <button class="btn btn-warning" onclick="exportToExcel()"><span class="icon icon-sm">download</span> Export</button>
             <button class="btn btn-success" onclick="document.getElementById('importFile').click()"><span class="icon icon-sm">upload</span> Import</button>
@@ -2464,6 +2524,21 @@
     </div>
 </div>
 
+<!-- Products modal (openProducts) -->
+<div class="modal-overlay" id="productsModal" onclick="if(event.target===this)closeProducts()">
+    <div class="modal products-modal">
+        <div class="modal-head">
+            <h2>Products</h2>
+            <button class="modal-close" onclick="closeProducts()"><span class="icon">close</span></button>
+        </div>
+        <div class="modal-body">
+            <div class="summary-tabs" id="productsTabs"></div>
+            <div id="productsContent"></div>
+        </div>
+        <div class="products-footer" id="productsFooter" hidden></div>
+    </div>
+</div>
+
 <!-- Confirm/Alert Modal -->
 <div class="confirm-modal" id="confirmModal">
     <div class="confirm-box">
@@ -2552,6 +2627,74 @@ let lastExportedTxCount = 0;
 
 // ============ LOCAL STORAGE ============
 const STORAGE_KEY = 'honesty-store';
+
+// ============ PRODUCT CATALOG ============
+// data.js is the base catalog; edits made in the app are stored as a small change set on top of it.
+const BASE_CATALOG = { products: PRODUCTS.map(p => ({ ...p })), hotWater: [...HOT_WATER_PRODUCTS] };
+const CATALOG_KEY = `${STORAGE_KEY}-catalog`;
+let catalogChanges = Catalog.emptyChanges();
+let catalogInfo = {};      // { [name]: 'added' | 'edited' }
+let catalogRemoved = [];   // base products currently removed
+let catalogCorrupt = false;
+
+function loadCatalog() {
+    catalogCorrupt = false;
+    catalogChanges = Catalog.emptyChanges();
+    const raw = localStorage.getItem(CATALOG_KEY);
+    if (raw === null) return;
+    try {
+        const c = JSON.parse(raw);
+        const ok = c && typeof c === 'object' && Array.isArray(c.added) && Array.isArray(c.removed)
+            && c.edited && typeof c.edited === 'object' && !Array.isArray(c.edited);
+        if (!ok) throw new Error('bad shape');
+        catalogChanges = c;
+    } catch (e) {
+        markCatalogCorrupt(raw);
+    }
+}
+
+function markCatalogCorrupt(raw) {
+    catalogCorrupt = true;
+    catalogChanges = Catalog.emptyChanges();
+    // Keep the unreadable value (it may be recoverable); applyCatalog leaves the stored key alone
+    const BACKUP_KEY = `${CATALOG_KEY}-corrupt-backup`;
+    if (raw !== null && localStorage.getItem(BACKUP_KEY) === null) localStorage.setItem(BACKUP_KEY, raw);
+}
+
+// Load + apply; stored changes with a valid shape but bad entries fall back like unreadable JSON
+function startCatalog() {
+    loadCatalog();
+    try {
+        applyCatalog();
+    } catch (e) {
+        markCatalogCorrupt(localStorage.getItem(CATALOG_KEY));
+        applyCatalog();
+    }
+}
+
+// Rebuilds PRODUCTS / HOT_WATER_PRODUCTS in place from data.js + saved changes
+function applyCatalog() {
+    const built = Catalog.build(BASE_CATALOG, catalogChanges);
+    PRODUCTS.splice(0, PRODUCTS.length, ...built.products);
+    HOT_WATER_PRODUCTS.splice(0, HOT_WATER_PRODUCTS.length, ...built.hotWater);
+    catalogChanges = built.changes;
+    catalogInfo = built.info;
+    catalogRemoved = built.removedBase;
+    if (Catalog.changeCount(catalogChanges) === 0) { if (!catalogCorrupt) localStorage.removeItem(CATALOG_KEY); }
+    else localStorage.setItem(CATALOG_KEY, JSON.stringify(catalogChanges));
+}
+
+function commitCatalog(newChanges, message) {
+    const prev = catalogChanges;
+    catalogChanges = newChanges;
+    catalogCorrupt = false;
+    applyCatalog();
+    renderAll();
+    filterProducts();
+    if (typeof renderProductsModal === 'function' && document.getElementById('productsModal')?.classList.contains('open')) renderProductsModal();
+    showToast(message, 'info', { label: 'Undo', onClick: () => commitCatalog(prev, 'Product change undone') });
+}
+
 // Local date (YYYY-MM-DD). toISOString() is UTC, which lags 8 hours behind PH time.
 function getLocalDate() { return getLocalDateOf(new Date()); }
 function getLocalDateOf(d) {
@@ -2869,7 +3012,7 @@ function renderProducts() {
             const header = document.createElement('div');
             header.className = 'category-header';
             header.dataset.category = currentCategory.toLowerCase();
-            header.innerHTML = `<h2>${currentCategory}</h2><div class="line"></div><span class="count">${catCount}</span>`;
+            header.innerHTML = `<h2>${esc(currentCategory)}</h2><div class="line"></div><span class="count">${catCount}</span>`;
             container.appendChild(header);
         }
 
@@ -3867,19 +4010,311 @@ async function setSalesGoal() {
 }
 
 // Prompt built on the confirm modal: resolves to the typed value, or null on cancel
-async function modalPrompt(title, message, value = '', icon = 'edit') {
+async function modalPrompt(title, message, value = '', icon = 'edit', inputType = 'number') {
     const pending = showConfirmModal({ title, message, icon, type: 'info', confirmText: 'Save', cancelText: 'Cancel', onConfirm: () => {} });
     const input = document.createElement('input');
     input.className = 'input-field';
-    input.type = 'number';
-    input.min = '0';
-    input.inputMode = 'numeric';
+    input.type = inputType;
+    if (inputType === 'number') { input.min = '0'; input.inputMode = 'numeric'; }
     input.value = value;
     input.style.cssText = 'display:block;width:100%;margin-top:12px;text-align:center;font-family:var(--mono);font-size:1.1rem;';
     document.getElementById('confirmMessage').appendChild(input);
     input.focus();
     input.select();
     return (await pending) ? input.value : null;
+}
+
+// ============ PRODUCTS MODAL ============
+let productsTab = 'all';
+let productsQuery = '';
+
+function openProducts(tab = 'all') {
+    productsTab = tab;
+    productsQuery = '';
+    renderProductsModal();
+    document.getElementById('productsModal').classList.add('open');
+}
+
+function closeProducts() {
+    document.getElementById('productsModal').classList.remove('open');
+}
+
+function setProductsTab(tab) {
+    productsTab = tab;
+    renderProductsModal();
+}
+
+function renderProductsModal() {
+    const tab = (v, label) => `<button class="summary-tab${productsTab === v ? ' active' : ''}" onclick="setProductsTab('${v}')">${label}</button>`;
+    document.getElementById('productsTabs').innerHTML = tab('all', 'All products') + tab('one', 'Add one') + tab('many', 'Add many');
+    if (productsTab === 'one') renderProductsAddOne();
+    else if (productsTab === 'many') renderProductsAddMany();
+    else renderProductsAll();
+    const n = Catalog.changeCount(catalogChanges);
+    const footer = document.getElementById('productsFooter');
+    footer.hidden = n === 0;
+    footer.innerHTML = n === 0 ? '' : `<span>${n} change${n === 1 ? '' : 's'} not in data.js yet &middot;</span> <a role="button" tabindex="0" onclick="downloadDataJs()" onkeydown="if(event.key==='Enter')downloadDataJs()">Download data.js</a>`;
+}
+
+// ---- Add one ----
+let addDraft = { name: '', price: '', category: '', hotWater: false };
+
+function renderProductsAddOne() {
+    const cats = productCategories();
+    if (!addDraft.category || (!cats.includes(addDraft.category) && addDraft.category !== '__new__')) addDraft.category = cats.includes('Other Products') ? 'Other Products' : (cats[0] || '');
+    const opts = cats.map(c => `<option value="${esc(c)}"${c === addDraft.category ? ' selected' : ''}>${esc(c)}</option>`).join('')
+        + '<option value="__new__">New category…</option>';
+    document.getElementById('productsContent').innerHTML = `<div class="add-one">
+        <label class="add-label" for="addName">Name</label>
+        <input class="input-field" id="addName" type="text" autocomplete="off" value="${esc(addDraft.name)}" oninput="onAddDraft()">
+        <div class="add-msg" id="addDupMsg" aria-live="polite"></div>
+        <label class="add-label" for="addPrice">Price</label>
+        <input class="input-field add-price" id="addPrice" type="text" inputmode="decimal" value="${esc(addDraft.price)}" oninput="onAddDraft()" onkeydown="if(event.key==='Enter'&&!document.getElementById('addSubmit').disabled){event.preventDefault();submitAddOne()}">
+        <label class="add-label" for="addCategory">Category</label>
+        <select class="input-field" id="addCategory" onchange="onAddCategory(this)">${opts}</select>
+        <label class="add-hw"><input type="checkbox" id="addHotWater" onchange="onAddDraft()"${addDraft.hotWater ? ' checked' : ''}> Hot water</label>
+        <button class="btn btn-primary" id="addSubmit" onclick="submitAddOne()" disabled>Add product</button>
+    </div>`;
+    updateAddOne();
+}
+
+function onAddDraft() {
+    addDraft.name = document.getElementById('addName').value;
+    addDraft.price = document.getElementById('addPrice').value;
+    addDraft.hotWater = document.getElementById('addHotWater').checked;
+    updateAddOne();
+}
+
+async function onAddCategory(select) {
+    if (select.value !== '__new__') { addDraft.category = select.value; return; }
+    const answer = await modalPrompt('New Category', 'Name of the new category', '', 'category', 'text');
+    const category = answer === null ? '' : Catalog.cleanCategory(answer, knownCategories());
+    if (category) {
+        const existing = productCategories().find(c => c === category);
+        addDraft.category = existing || category;
+        if (!existing) {
+            const opt = new Option(category, category, true, true);
+            select.insertBefore(opt, select.querySelector('option[value="__new__"]'));
+        }
+    }
+    select.value = addDraft.category;
+}
+
+function updateAddOne() {
+    const name = Catalog.cleanName(addDraft.name);
+    const dup = name && PRODUCTS.find(p => Catalog.nameKey(p.name) === Catalog.nameKey(name));
+    const msg = document.getElementById('addDupMsg');
+    if (dup) {
+        msg.innerHTML = `${esc(dup.name)} already exists &middot; <a role="button" tabindex="0" onclick="editExistingProduct(${jsArg(dup.name)})" onkeydown="if(event.key==='Enter')editExistingProduct(${jsArg(dup.name)})">Edit it</a>`;
+    } else if (name && catalogRemoved.some(p => Catalog.nameKey(p.name) === Catalog.nameKey(name))) {
+        const r = catalogRemoved.find(p => Catalog.nameKey(p.name) === Catalog.nameKey(name));
+        msg.textContent = `${r.name} was removed earlier. Adding it restores it.`;
+    } else msg.textContent = '';
+    document.getElementById('addSubmit').disabled = !name || !!dup || Catalog.parsePrice(addDraft.price) === null;
+}
+
+function editExistingProduct(name) {
+    productsQuery = name;
+    setProductsTab('all');
+}
+
+function submitAddOne() {
+    const name = Catalog.cleanName(addDraft.name);
+    const price = Catalog.parsePrice(addDraft.price);
+    if (!name || price === null || PRODUCTS.some(p => Catalog.nameKey(p.name) === Catalog.nameKey(name))) return;
+    const category = addDraft.category && addDraft.category !== '__new__' ? addDraft.category : 'Other Products';
+    const changes = Catalog.addProducts(BASE_CATALOG, catalogChanges, [{ name, price, category, hotWater: addDraft.hotWater }]);
+    addDraft = { name: '', price: '', category, hotWater: false };
+    commitCatalog(changes, `Added ${name}`);
+    const input = document.getElementById('addName');
+    if (input) input.focus();
+}
+
+// ---- Add many ----
+let pasteRows = [];
+let pasteUpdates = new Set(); // nameKeys of Exists rows ticked for update
+
+function renderProductsAddMany() {
+    document.getElementById('productsContent').innerHTML = `<div class="add-many">
+        <p class="add-help">One product per line: name, price, category (optional). Add <code>hw</code> as a fourth column for hot water. Paste from Excel or type with commas.</p>
+        <textarea class="input-field" id="pasteBox" rows="6" spellcheck="false" placeholder="Nova, 15, Snacks&#10;Piattos, 15, Snacks&#10;Kopiko Blanca, 10, Hot Water, hw" oninput="updatePastePreview()"></textarea>
+        <div id="pastePreview"></div>
+        <button class="btn btn-primary" id="pasteSubmit" onclick="submitAddMany()" disabled>Add 0 products</button>
+    </div>`;
+    pasteRows = [];
+    pasteUpdates = new Set();
+}
+
+function updatePastePreview() {
+    pasteRows = Catalog.parsePaste(document.getElementById('pasteBox').value, PRODUCTS, HOT_WATER_PRODUCTS, catalogRemoved);
+    const existsKeys = new Set(pasteRows.filter(r => r.status === 'exists').map(r => Catalog.nameKey(r.name)));
+    pasteUpdates = new Set([...pasteUpdates].filter(k => existsKeys.has(k)));
+    drawPastePreview();
+}
+
+function togglePasteUpdate(i, checked) {
+    const key = Catalog.nameKey(pasteRows[i].name);
+    if (checked) pasteUpdates.add(key); else pasteUpdates.delete(key);
+    drawPastePreview();
+}
+
+function drawPastePreview() {
+    const diffText = d => [
+        d.price !== undefined ? `&#8369;${(PRODUCTS.find(p => Catalog.nameKey(p.name) === Catalog.nameKey(d.__name)) || {}).price} &rarr; &#8369;${d.price}` : '',
+        d.category !== undefined ? `to ${esc(d.category)}` : '',
+        d.hotWater !== undefined ? (d.hotWater ? 'hot water on' : 'hot water off') : ''
+    ].filter(Boolean).join(', ');
+    const rows = pasteRows.map((r, i) => {
+        let chip, detail = '';
+        if (r.status === 'new') { chip = `<span class="paste-status st-new">${r.restore ? 'Restore' : 'New'}</span>`; detail = `&#8369;${r.price} &middot; ${esc(r.category)}${r.hotWater ? ' &middot; hot water' : ''}`; }
+        else if (r.status === 'exists') {
+            chip = '<span class="paste-status st-exists">Exists</span>';
+            detail = `<label class="paste-upd"><input type="checkbox"${pasteUpdates.has(Catalog.nameKey(r.name)) ? ' checked' : ''} onchange="togglePasteUpdate(${i}, this.checked)"> Update: ${diffText({ ...r.diff, __name: r.name })}</label>`;
+        } else if (r.status === 'same') { chip = '<span class="paste-status st-same">Same</span>'; detail = 'No change'; }
+        else { chip = '<span class="paste-status st-problem">Problem</span>'; detail = esc(r.reason || ''); }
+        return `<tr><td class="paste-line">${r.line}</td><td>${esc(r.name || r.raw)}</td><td>${chip}</td><td>${detail}</td></tr>`;
+    }).join('');
+    document.getElementById('pastePreview').innerHTML = rows ? `<div class="paste-scroll"><table class="paste-table"><tbody>${rows}</tbody></table></div>` : '';
+    const n = pasteRows.filter(r => r.status === 'new').length;
+    const m = pasteRows.filter(r => r.status === 'exists' && pasteUpdates.has(Catalog.nameKey(r.name))).length;
+    const btn = document.getElementById('pasteSubmit');
+    btn.textContent = `Add ${n} product${n === 1 ? '' : 's'}${m ? ` · Update ${m}` : ''}`;
+    btn.disabled = n === 0 && m === 0;
+}
+
+function submitAddMany() {
+    const adds = pasteRows.filter(r => r.status === 'new').map(r => ({ name: r.name, price: r.price, category: r.category, hotWater: r.hotWater }));
+    const updates = pasteRows.filter(r => r.status === 'exists' && pasteUpdates.has(Catalog.nameKey(r.name)));
+    if (!adds.length && !updates.length) return;
+    let changes = Catalog.addProducts(BASE_CATALOG, catalogChanges, adds);
+    updates.forEach(r => { changes = Catalog.editProduct(BASE_CATALOG, changes, r.name, r.diff); });
+    const n = adds.length, m = updates.length;
+    const message = m === 0 ? `Added ${n} product${n === 1 ? '' : 's'}`
+        : n === 0 ? `Updated ${m} product${m === 1 ? '' : 's'}`
+        : `Added ${n}, updated ${m} products`;
+    pasteRows = [];
+    pasteUpdates = new Set();
+    commitCatalog(changes, message);
+    const box = document.getElementById('pasteBox');
+    if (box) box.value = '';
+    updatePastePreview();
+}
+
+// Current categories plus data.js ones, so a re-typed category keeps its original spelling
+function knownCategories() {
+    return productCategories().concat(BASE_CATALOG.products.map(p => p.category));
+}
+
+function productCategories() {
+    return [...new Set(PRODUCTS.map(p => p.category))];
+}
+
+function renderProductsAll() {
+    const cats = productCategories();
+    let html = `<input type="search" class="input-field products-search" id="productsSearch" placeholder="Search products" value="${esc(productsQuery)}" oninput="onProductsSearch(this.value)">`;
+    let last = null;
+    PRODUCTS.forEach(p => {
+        if (p.category !== last) {
+            last = p.category;
+            html += `<div class="prow-cat" data-category="${esc(p.category.toLowerCase())}">${esc(p.category)}</div>`;
+        }
+        const info = catalogInfo[p.name];
+        const hw = HOT_WATER_PRODUCTS.includes(p.name);
+        const opts = cats.map(c => `<option value="${esc(c)}"${c === p.category ? ' selected' : ''}>${esc(c)}</option>`).join('')
+            + '<option value="__new__">New category…</option>';
+        html += `<div class="prow" data-name="${esc(p.name.toLowerCase())}">
+            <div class="prow-name"><span>${esc(p.name)}</span>
+                ${info === 'added' ? '<span class="prow-tag added">Added</span>' : ''}
+                ${info === 'edited' ? `<span class="prow-tag">Edited</span><button class="prow-reset" onclick="resetEditedProduct(${jsArg(p.name)})">Reset</button>` : ''}
+            </div>
+            <input class="input-field prow-price" type="text" inputmode="decimal" value="${p.price}" aria-label="Price of ${esc(p.name)}" onchange="onProductPrice(${jsArg(p.name)}, this)">
+            <select class="input-field prow-catsel" aria-label="Category of ${esc(p.name)}" onchange="onProductCategory(${jsArg(p.name)}, this)">${opts}</select>
+            <input class="prow-hw" type="checkbox" title="Hot water" aria-label="Hot water for ${esc(p.name)}"${hw ? ' checked' : ''} onchange="onProductHotWater(${jsArg(p.name)}, this)">
+            <button class="prow-del" title="Remove ${esc(p.name)}" onclick="confirmRemoveProduct(${jsArg(p.name)})"><span class="icon icon-sm">delete</span></button>
+        </div>`;
+    });
+    if (!PRODUCTS.length) html += '<span class="empty-note">No products</span>';
+    if (catalogRemoved.length) {
+        html += `<details class="prow-removed"><summary>Removed (${catalogRemoved.length})</summary>${catalogRemoved.map(p => `<div class="prow" data-removed="1">
+            <div class="prow-name"><span>${esc(p.name)}</span></div>
+            <button class="btn btn-outline prow-restore" onclick="restoreRemovedProduct(${jsArg(p.name)})"><span class="icon icon-sm">restore</span> Restore</button>
+        </div>`).join('')}</details>`;
+    }
+    document.getElementById('productsContent').innerHTML = html;
+    filterProductsModal();
+}
+
+function onProductsSearch(value) {
+    productsQuery = value;
+    filterProductsModal();
+}
+
+function filterProductsModal() {
+    const q = productsQuery.trim().toLowerCase();
+    const content = document.getElementById('productsContent');
+    content.querySelectorAll('.prow[data-name]').forEach(r => { r.style.display = r.dataset.name.includes(q) ? '' : 'none'; });
+    content.querySelectorAll('.prow-cat').forEach(h => {
+        let any = false;
+        for (let el = h.nextElementSibling; el && el.classList.contains('prow'); el = el.nextElementSibling) {
+            if (el.style.display !== 'none') { any = true; break; }
+        }
+        h.style.display = any ? '' : 'none';
+    });
+}
+
+function onProductPrice(name, input) {
+    const price = Catalog.parsePrice(input.value);
+    const current = PRODUCTS.find(p => p.name === name);
+    if (price === null) {
+        input.value = current ? current.price : '';
+        showToast('Price must be a number above 0', 'error');
+        return;
+    }
+    if (!current || price === current.price) { input.value = price; return; }
+    commitCatalog(Catalog.editProduct(BASE_CATALOG, catalogChanges, name, { price }), `Updated ${name}`);
+}
+
+async function onProductCategory(name, select) {
+    let category = select.value;
+    if (category === '__new__') {
+        const answer = await modalPrompt('New Category', 'Name of the new category', '', 'category', 'text');
+        category = answer === null ? '' : Catalog.cleanCategory(answer, knownCategories());
+        if (!category) { renderProductsModal(); return; }
+    }
+    const current = PRODUCTS.find(p => p.name === name);
+    if (!current || category === current.category) { renderProductsModal(); return; }
+    commitCatalog(Catalog.editProduct(BASE_CATALOG, catalogChanges, name, { category }), `Moved ${name} to ${category}`);
+}
+
+function onProductHotWater(name, checkbox) {
+    commitCatalog(Catalog.editProduct(BASE_CATALOG, catalogChanges, name, { hotWater: checkbox.checked }), `Updated ${name}`);
+}
+
+async function confirmRemoveProduct(name) {
+    if (!await modalConfirm('Remove Product', `Remove ${name}? Past sales are kept.`, 'danger', 'delete', 'Remove', 'Cancel')) return;
+    commitCatalog(Catalog.removeProduct(BASE_CATALOG, catalogChanges, name), `Removed ${name}`);
+}
+
+function restoreRemovedProduct(name) {
+    commitCatalog(Catalog.restoreProduct(catalogChanges, name), `Restored ${name}`);
+}
+
+function resetEditedProduct(name) {
+    commitCatalog(Catalog.resetProduct(catalogChanges, name), `Reset ${name}`);
+}
+
+function downloadDataJs() {
+    const order = [...new Set(BASE_CATALOG.products.map(p => p.category))];
+    const text = Catalog.toDataJs({ products: PRODUCTS, hotWater: HOT_WATER_PRODUCTS, customers: CUSTOMERS, fee: HOT_WATER_FEE, overrides: HOT_WATER_FEE_OVERRIDES, categoryOrder: order });
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/javascript' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'data.js';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Downloaded data.js. Replace the file in the app folder, then push to GitHub.');
 }
 
 // ============ WHO OWES ============
@@ -4089,7 +4524,10 @@ function restoreBackup(event) {
         loadFromStorage();
         salesShown = transactions.reduce((s, t) => s + t.totalPrice, 0);
         invalidatePastOwes();
+        startCatalog();
         renderAll();
+        filterProducts();
+        if (document.getElementById('productsModal').classList.contains('open')) renderProductsModal();
         renderBackupBanner();
         if (document.getElementById('historyModal').classList.contains('open')) showHistory();
         showToast(`Restored: ${added} day${added === 1 ? '' : 's'} added or updated`);
@@ -4163,6 +4601,7 @@ function toggleMoreMenu(e) {
     menu.innerHTML = [
         // Button text minus its icon ligature (e.g. "Resume Auto-save", "Saved 10:42 AM")
         AutoSave.supported ? item('save', esc([...autoBtn.childNodes].filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('').trim()), 'onAutoSaveClick()') : '',
+        item('inventory_2', 'Products', 'openProducts()'),
         item('download', 'Export to Excel', 'exportToExcel()'),
         item('upload', 'Import from Excel', "document.getElementById('importFile').click()"),
         item('note_add', 'New day', 'clearAll()'),
@@ -4268,6 +4707,7 @@ function splashBrand(el) {
 }
 
 // ============ INIT ============
+startCatalog();
 migrateUtcDates();
 loadFromStorage();
 salesShown = transactions.reduce((s, t) => s + t.totalPrice, 0);
@@ -4280,6 +4720,7 @@ renderAutoSave();
 AutoSave.restore();
 loadDarkMode();
 renderAll();
+if (catalogCorrupt) showToast('Saved product changes could not be read. Using data.js.');
 initHeaderWater();
 initSalesBubbles();
 initPageWater();
