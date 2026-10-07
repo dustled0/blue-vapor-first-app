@@ -2188,7 +2188,6 @@
             /* Phone header: Summary, History and a More menu for everything else */
             .header-actions > .btn-products,
             .header-actions > .btn-warning,
-            .header-actions > .btn-success,
             .header-actions > .btn-new,
             .header-actions > #autoSaveBtn,
             .header-actions > #calmModeBtn,
@@ -2372,8 +2371,6 @@
             <button class="btn btn-outline btn-products" onclick="openProducts()"><span class="icon icon-sm">inventory_2</span> Products</button>
             <button class="btn btn-autosave autosave-off" id="autoSaveBtn" onclick="onAutoSaveClick()" hidden><span class="icon icon-sm">save</span> Auto-save</button>
             <button class="btn btn-warning" onclick="exportToExcel()"><span class="icon icon-sm">download</span> Export</button>
-            <button class="btn btn-success" onclick="document.getElementById('importFile').click()"><span class="icon icon-sm">upload</span> Import</button>
-            <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="importFromExcel(event)">
             <input type="file" id="restoreFile" accept=".json,application/json" style="display:none" onchange="restoreBackup(event)">
             <button class="btn btn-new" onclick="clearAll()"><span class="icon icon-sm">note_add</span> New</button>
             <button class="btn-icon" onclick="toggleMoreMenu(event)" id="moreBtn" title="More" aria-haspopup="true" aria-expanded="false"><span class="icon">more_horiz</span></button>
@@ -3859,19 +3856,6 @@ function readWorkbookFile(event, onLoad) {
     reader.readAsArrayBuffer(file);
 }
 
-function importFromExcel(event) {
-    readWorkbookFile(event, async (wb, fileName) => {
-        const imported = parseWorkbook(wb);
-        if (imported.length === 0) { modalAlert('No Data', 'No data found in the file.', 'info', 'table_rows'); return; }
-        const ok = await modalConfirm('Import Data', `Load ${imported.length} transactions from "${fileName}"?` + (transactions.length ? ` This will replace the ${transactions.length} transactions in the current session.` : ''), transactions.length ? 'warn' : 'info', 'upload_file', 'Import', 'Cancel');
-        if (!ok) return;
-        transactions = imported; txIdCounter = imported.length;
-        customerFilter = null; lastExportedTxCount = imported.length;
-        saveToStorage(); renderAll();
-        showToast(`Loaded ${imported.length} transactions`);
-    });
-}
-
 // Add an exported file to History under its own date (from the filename, else the
 // first transaction's time). Doesn't touch the current session.
 function importPastDay(event) {
@@ -4603,7 +4587,6 @@ function toggleMoreMenu(e) {
         AutoSave.supported ? item('save', esc([...autoBtn.childNodes].filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('').trim()), 'onAutoSaveClick()') : '',
         item('inventory_2', 'Products', 'openProducts()'),
         item('download', 'Export to Excel', 'exportToExcel()'),
-        item('upload', 'Import from Excel', "document.getElementById('importFile').click()"),
         item('note_add', 'New day', 'clearAll()'),
         '<hr>',
         item('cloud_download', 'Back up everything', 'backupAll()'),
