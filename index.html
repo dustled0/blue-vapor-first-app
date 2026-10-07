@@ -4113,7 +4113,7 @@ function submitAddOne() {
 
 // ---- Add many ----
 let pasteRows = [];
-let pasteUpdates = new Set();
+let pasteUpdates = new Set(); // nameKeys of Exists rows ticked for update
 
 function renderProductsAddMany() {
     document.getElementById('productsContent').innerHTML = `<div class="add-many">
@@ -4128,12 +4128,14 @@ function renderProductsAddMany() {
 
 function updatePastePreview() {
     pasteRows = Catalog.parsePaste(document.getElementById('pasteBox').value, PRODUCTS, HOT_WATER_PRODUCTS);
-    pasteUpdates = new Set([...pasteUpdates].filter(i => pasteRows[i] && pasteRows[i].status === 'exists'));
+    const existsKeys = new Set(pasteRows.filter(r => r.status === 'exists').map(r => Catalog.nameKey(r.name)));
+    pasteUpdates = new Set([...pasteUpdates].filter(k => existsKeys.has(k)));
     drawPastePreview();
 }
 
 function togglePasteUpdate(i, checked) {
-    if (checked) pasteUpdates.add(i); else pasteUpdates.delete(i);
+    const key = Catalog.nameKey(pasteRows[i].name);
+    if (checked) pasteUpdates.add(key); else pasteUpdates.delete(key);
     drawPastePreview();
 }
 
@@ -4148,14 +4150,14 @@ function drawPastePreview() {
         if (r.status === 'new') { chip = '<span class="paste-status st-new">New</span>'; detail = `&#8369;${r.price} &middot; ${esc(r.category)}${r.hotWater ? ' &middot; hot water' : ''}`; }
         else if (r.status === 'exists') {
             chip = '<span class="paste-status st-exists">Exists</span>';
-            detail = `<label class="paste-upd"><input type="checkbox"${pasteUpdates.has(i) ? ' checked' : ''} onchange="togglePasteUpdate(${i}, this.checked)"> Update: ${diffText({ ...r.diff, __name: r.name })}</label>`;
+            detail = `<label class="paste-upd"><input type="checkbox"${pasteUpdates.has(Catalog.nameKey(r.name)) ? ' checked' : ''} onchange="togglePasteUpdate(${i}, this.checked)"> Update: ${diffText({ ...r.diff, __name: r.name })}</label>`;
         } else if (r.status === 'same') { chip = '<span class="paste-status st-same">Same</span>'; detail = 'No change'; }
         else { chip = '<span class="paste-status st-problem">Problem</span>'; detail = esc(r.reason || ''); }
         return `<tr><td class="paste-line">${r.line}</td><td>${esc(r.name || r.raw)}</td><td>${chip}</td><td>${detail}</td></tr>`;
     }).join('');
     document.getElementById('pastePreview').innerHTML = rows ? `<div class="paste-scroll"><table class="paste-table"><tbody>${rows}</tbody></table></div>` : '';
     const n = pasteRows.filter(r => r.status === 'new').length;
-    const m = pasteUpdates.size;
+    const m = pasteRows.filter(r => r.status === 'exists' && pasteUpdates.has(Catalog.nameKey(r.name))).length;
     const btn = document.getElementById('pasteSubmit');
     btn.textContent = `Add ${n} product${n === 1 ? '' : 's'}${m ? ` · Update ${m}` : ''}`;
     btn.disabled = n === 0 && m === 0;
@@ -4163,7 +4165,7 @@ function drawPastePreview() {
 
 function submitAddMany() {
     const adds = pasteRows.filter(r => r.status === 'new').map(r => ({ name: r.name, price: r.price, category: r.category, hotWater: r.hotWater }));
-    const updates = pasteRows.filter((r, i) => pasteUpdates.has(i));
+    const updates = pasteRows.filter(r => r.status === 'exists' && pasteUpdates.has(Catalog.nameKey(r.name)));
     if (!adds.length && !updates.length) return;
     let changes = Catalog.addProducts(BASE_CATALOG, catalogChanges, adds);
     updates.forEach(r => { changes = Catalog.editProduct(BASE_CATALOG, changes, r.name, r.diff); });

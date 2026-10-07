@@ -67,6 +67,19 @@ const openTab = async (page, label) => {
         check('top today no C2', !(await page.locator('#topToday').textContent()).includes('C2'));
         check('log still lists C2', (await page.locator('#txLogBody').textContent()).includes('C2'));
 
+        // Fix round 1: ticks follow the product, not the row index
+        await page.evaluate(() => commitCatalog(Catalog.resetProduct(catalogChanges, 'Winston'), 'x'));
+        check('winston back to 11', await price(page, 'Winston') === 11);
+        await page.evaluate(() => setProductsTab('many'));
+        await page.locator('#pasteBox').fill('winston, 12, Cigarettes\nMilo, 10, Hot Water');
+        await page.locator('#pastePreview input[type=checkbox]').first().check();
+        await page.locator('#pasteBox').fill('Milo, 10, Hot Water\nwinston, 12, Cigarettes');
+        const ticks = await page.$$eval('#pastePreview input[type=checkbox]', els => els.map(e => e.checked));
+        check('only winston ticked after reorder', ticks.filter(Boolean).length === 1 && ticks.at(-1) === true, ticks.join(','));
+        await page.locator('#pasteSubmit').click();
+        check('winston updated to 12', await price(page, 'Winston') === 12);
+        check('milo hot water unchanged', await page.evaluate(() => HOT_WATER_PRODUCTS.includes('Milo')));
+
         // apostrophe
         await page.evaluate(() => commitCatalog(Catalog.addProducts(BASE_CATALOG, catalogChanges, [{ name: "Lola's Pandesal", price: 5, category: 'Other Products' }]), 'x'));
         await page.locator('.product-card[data-name="lola\'s pandesal"] .quick-add').evaluate(e => e.click());
