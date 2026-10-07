@@ -2107,6 +2107,42 @@
         body.calm-mode .page-water .pw-light,
         body.calm-mode .page-water .pw-wave { animation: none !important; }
 
+        /* ===== PRODUCTS MODAL ===== */
+        .products-modal { max-width: 900px; }
+        .products-modal .modal-body { padding-bottom: 12px; }
+        .products-search { width: 100%; margin-bottom: 14px; }
+        .prow-cat { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); margin: 16px 0 6px; }
+        .prow {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 84px 160px 34px 34px;
+            gap: 10px;
+            align-items: center;
+            padding: 8px 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        .prow-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+        .prow .input-field { width: 100%; min-width: 0; padding: 6px 8px; font-size: 0.85rem; }
+        .prow .prow-price { font-family: var(--mono); text-align: right; }
+        .prow-hw { width: 18px; height: 18px; justify-self: center; accent-color: var(--hot-water); cursor: var(--cursor-drop); }
+        .prow-tag { font-size: 0.66rem; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-full); background: var(--primary-light); color: var(--primary); }
+        .prow-tag.added { background: var(--success-light); color: var(--success); }
+        .prow-reset { border: 0; background: none; padding: 0; font: inherit; font-size: 0.74rem; color: var(--primary); text-decoration: underline; cursor: var(--cursor-drop); }
+        .prow-del, .prow-restore { cursor: var(--cursor-drop); }
+        .prow-del { border: 0; background: none; color: var(--text-secondary); border-radius: var(--radius-sm); padding: 4px; display: inline-flex; justify-content: center; }
+        .prow-del:hover { color: var(--danger); background: var(--danger-light); }
+        .prow-removed { margin-top: 18px; }
+        .prow-removed summary { cursor: var(--cursor-drop); font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); }
+        .prow-removed .prow { grid-template-columns: minmax(0, 1fr) auto; opacity: 0.85; }
+        .products-footer { position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 12px 24px; font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .products-footer a { color: var(--primary); font-weight: 600; text-decoration: underline; cursor: var(--cursor-drop); }
+        .products-footer[hidden] { display: none; }
+        @media (max-width: 600px) {
+            .prow { grid-template-columns: minmax(0, 1fr) 76px 34px 34px; }
+            .prow-name { grid-column: 1 / -1; }
+            .prow select.input-field { grid-column: 1 / 2; }
+            .products-footer { padding: 10px 16px; }
+        }
+
         /* ===== RESPONSIVE ===== */
 
         /* Tablet */
@@ -2129,6 +2165,7 @@
         /* Mobile */
         @media (max-width: 480px) {
             /* Phone header: Summary, History and a More menu for everything else */
+            .header-actions > .btn-products,
             .header-actions > .btn-warning,
             .header-actions > .btn-success,
             .header-actions > .btn-new,
@@ -2311,6 +2348,7 @@
             <button class="btn btn-outline" onclick="toggleAllProducts()" id="toggleAllBtn" hidden><span class="icon icon-sm">unfold_more</span> Expand</button>
             <button class="btn btn-primary" onclick="showSummary()"><span class="icon icon-sm">receipt_long</span> Summary</button>
             <button class="btn btn-outline btn-history" onclick="showHistory()"><span class="icon icon-sm">history</span> History</button>
+            <button class="btn btn-outline btn-products" onclick="openProducts()"><span class="icon icon-sm">inventory_2</span> Products</button>
             <button class="btn btn-autosave autosave-off" id="autoSaveBtn" onclick="onAutoSaveClick()" hidden><span class="icon icon-sm">save</span> Auto-save</button>
             <button class="btn btn-warning" onclick="exportToExcel()"><span class="icon icon-sm">download</span> Export</button>
             <button class="btn btn-success" onclick="document.getElementById('importFile').click()"><span class="icon icon-sm">upload</span> Import</button>
@@ -2462,6 +2500,21 @@
             <button class="modal-close" onclick="closeDebts()"><span class="icon">close</span></button>
         </div>
         <div class="modal-body" id="debtContent"></div>
+    </div>
+</div>
+
+<!-- Products modal (openProducts) -->
+<div class="modal-overlay" id="productsModal" onclick="if(event.target===this)closeProducts()">
+    <div class="modal products-modal">
+        <div class="modal-head">
+            <h2>Products</h2>
+            <button class="modal-close" onclick="closeProducts()"><span class="icon">close</span></button>
+        </div>
+        <div class="modal-body">
+            <div class="summary-tabs" id="productsTabs"></div>
+            <div id="productsContent"></div>
+        </div>
+        <div class="products-footer" id="productsFooter" hidden></div>
     </div>
 </div>
 
@@ -3920,19 +3973,169 @@ async function setSalesGoal() {
 }
 
 // Prompt built on the confirm modal: resolves to the typed value, or null on cancel
-async function modalPrompt(title, message, value = '', icon = 'edit') {
+async function modalPrompt(title, message, value = '', icon = 'edit', inputType = 'number') {
     const pending = showConfirmModal({ title, message, icon, type: 'info', confirmText: 'Save', cancelText: 'Cancel', onConfirm: () => {} });
     const input = document.createElement('input');
     input.className = 'input-field';
-    input.type = 'number';
-    input.min = '0';
-    input.inputMode = 'numeric';
+    input.type = inputType;
+    if (inputType === 'number') { input.min = '0'; input.inputMode = 'numeric'; }
     input.value = value;
     input.style.cssText = 'display:block;width:100%;margin-top:12px;text-align:center;font-family:var(--mono);font-size:1.1rem;';
     document.getElementById('confirmMessage').appendChild(input);
     input.focus();
     input.select();
     return (await pending) ? input.value : null;
+}
+
+// ============ PRODUCTS MODAL ============
+let productsTab = 'all';
+let productsQuery = '';
+
+function openProducts(tab = 'all') {
+    productsTab = tab;
+    productsQuery = '';
+    renderProductsModal();
+    document.getElementById('productsModal').classList.add('open');
+}
+
+function closeProducts() {
+    document.getElementById('productsModal').classList.remove('open');
+}
+
+function setProductsTab(tab) {
+    productsTab = tab;
+    renderProductsModal();
+}
+
+function renderProductsModal() {
+    const tab = (v, label) => `<button class="summary-tab${productsTab === v ? ' active' : ''}" onclick="setProductsTab('${v}')">${label}</button>`;
+    document.getElementById('productsTabs').innerHTML = tab('all', 'All products') + tab('one', 'Add one') + tab('many', 'Add many');
+    if (productsTab === 'one') renderProductsAddOne();
+    else if (productsTab === 'many') renderProductsAddMany();
+    else renderProductsAll();
+    const n = Catalog.changeCount(catalogChanges);
+    const footer = document.getElementById('productsFooter');
+    footer.hidden = n === 0;
+    footer.innerHTML = n === 0 ? '' : `<span>${n} change${n === 1 ? '' : 's'} not in data.js yet &middot;</span> <a role="button" tabindex="0" onclick="downloadDataJs()" onkeydown="if(event.key==='Enter')downloadDataJs()">Download data.js</a>`;
+}
+
+function renderProductsAddOne() {
+    document.getElementById('productsContent').innerHTML = '<span class="empty-note">Coming soon</span>';
+}
+function renderProductsAddMany() {
+    document.getElementById('productsContent').innerHTML = '<span class="empty-note">Coming soon</span>';
+}
+
+function productCategories() {
+    return [...new Set(PRODUCTS.map(p => p.category))];
+}
+
+function renderProductsAll() {
+    const cats = productCategories();
+    let html = `<input type="search" class="input-field products-search" id="productsSearch" placeholder="Search products" value="${esc(productsQuery)}" oninput="onProductsSearch(this.value)">`;
+    let last = null;
+    PRODUCTS.forEach(p => {
+        if (p.category !== last) {
+            last = p.category;
+            html += `<div class="prow-cat" data-category="${esc(p.category.toLowerCase())}">${esc(p.category)}</div>`;
+        }
+        const info = catalogInfo[p.name];
+        const hw = HOT_WATER_PRODUCTS.includes(p.name);
+        const opts = cats.map(c => `<option value="${esc(c)}"${c === p.category ? ' selected' : ''}>${esc(c)}</option>`).join('')
+            + '<option value="__new__">New category…</option>';
+        html += `<div class="prow" data-name="${esc(p.name.toLowerCase())}">
+            <div class="prow-name"><span>${esc(p.name)}</span>
+                ${info === 'added' ? '<span class="prow-tag added">Added</span>' : ''}
+                ${info === 'edited' ? `<span class="prow-tag">Edited</span><button class="prow-reset" onclick="resetEditedProduct(${jsArg(p.name)})">Reset</button>` : ''}
+            </div>
+            <input class="input-field prow-price" type="text" inputmode="decimal" value="${p.price}" aria-label="Price of ${esc(p.name)}" onchange="onProductPrice(${jsArg(p.name)}, this)">
+            <select class="input-field prow-catsel" aria-label="Category of ${esc(p.name)}" onchange="onProductCategory(${jsArg(p.name)}, this)">${opts}</select>
+            <input class="prow-hw" type="checkbox" title="Hot water" aria-label="Hot water for ${esc(p.name)}"${hw ? ' checked' : ''} onchange="onProductHotWater(${jsArg(p.name)}, this)">
+            <button class="prow-del" title="Remove ${esc(p.name)}" onclick="confirmRemoveProduct(${jsArg(p.name)})"><span class="icon icon-sm">delete</span></button>
+        </div>`;
+    });
+    if (!PRODUCTS.length) html += '<span class="empty-note">No products</span>';
+    if (catalogRemoved.length) {
+        html += `<details class="prow-removed"><summary>Removed (${catalogRemoved.length})</summary>${catalogRemoved.map(p => `<div class="prow" data-removed="1">
+            <div class="prow-name"><span>${esc(p.name)}</span></div>
+            <button class="btn btn-outline prow-restore" onclick="restoreRemovedProduct(${jsArg(p.name)})"><span class="icon icon-sm">restore</span> Restore</button>
+        </div>`).join('')}</details>`;
+    }
+    document.getElementById('productsContent').innerHTML = html;
+    filterProductsModal();
+}
+
+function onProductsSearch(value) {
+    productsQuery = value;
+    filterProductsModal();
+}
+
+function filterProductsModal() {
+    const q = productsQuery.trim().toLowerCase();
+    const content = document.getElementById('productsContent');
+    content.querySelectorAll('.prow[data-name]').forEach(r => { r.style.display = r.dataset.name.includes(q) ? '' : 'none'; });
+    content.querySelectorAll('.prow-cat').forEach(h => {
+        let any = false;
+        for (let el = h.nextElementSibling; el && el.classList.contains('prow'); el = el.nextElementSibling) {
+            if (el.style.display !== 'none') { any = true; break; }
+        }
+        h.style.display = any ? '' : 'none';
+    });
+}
+
+function onProductPrice(name, input) {
+    const price = Catalog.parsePrice(input.value);
+    const current = PRODUCTS.find(p => p.name === name);
+    if (price === null) {
+        input.value = current ? current.price : '';
+        showToast('Price must be a number above 0', 'error');
+        return;
+    }
+    if (!current || price === current.price) { input.value = price; return; }
+    commitCatalog(Catalog.editProduct(BASE_CATALOG, catalogChanges, name, { price }), `Updated ${name}`);
+}
+
+async function onProductCategory(name, select) {
+    let category = select.value;
+    if (category === '__new__') {
+        const answer = await modalPrompt('New Category', 'Name of the new category', '', 'category', 'text');
+        category = answer === null ? '' : Catalog.titleCase(Catalog.cleanName(answer));
+        if (!category) { renderProductsModal(); return; }
+    }
+    const current = PRODUCTS.find(p => p.name === name);
+    if (!current || category === current.category) { renderProductsModal(); return; }
+    commitCatalog(Catalog.editProduct(BASE_CATALOG, catalogChanges, name, { category: Catalog.titleCase(category) }), `Moved ${name} to ${category}`);
+}
+
+function onProductHotWater(name, checkbox) {
+    commitCatalog(Catalog.editProduct(BASE_CATALOG, catalogChanges, name, { hotWater: checkbox.checked }), `Updated ${name}`);
+}
+
+async function confirmRemoveProduct(name) {
+    if (!await modalConfirm('Remove Product', `Remove ${name}? Past sales are kept.`, 'danger', 'delete', 'Remove', 'Cancel')) return;
+    commitCatalog(Catalog.removeProduct(BASE_CATALOG, catalogChanges, name), `Removed ${name}`);
+}
+
+function restoreRemovedProduct(name) {
+    commitCatalog(Catalog.restoreProduct(catalogChanges, name), `Restored ${name}`);
+}
+
+function resetEditedProduct(name) {
+    commitCatalog(Catalog.resetProduct(catalogChanges, name), `Reset ${name}`);
+}
+
+function downloadDataJs() {
+    const order = [...new Set(BASE_CATALOG.products.map(p => p.category))];
+    const text = Catalog.toDataJs({ products: PRODUCTS, hotWater: HOT_WATER_PRODUCTS, customers: CUSTOMERS, fee: HOT_WATER_FEE, overrides: HOT_WATER_FEE_OVERRIDES, categoryOrder: order });
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/javascript' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'data.js';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Downloaded data.js. Replace the file in the app folder, then push to GitHub.');
 }
 
 // ============ WHO OWES ============
@@ -4216,6 +4419,7 @@ function toggleMoreMenu(e) {
     menu.innerHTML = [
         // Button text minus its icon ligature (e.g. "Resume Auto-save", "Saved 10:42 AM")
         AutoSave.supported ? item('save', esc([...autoBtn.childNodes].filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('').trim()), 'onAutoSaveClick()') : '',
+        item('inventory_2', 'Products', 'openProducts()'),
         item('download', 'Export to Excel', 'exportToExcel()'),
         item('upload', 'Import from Excel', "document.getElementById('importFile').click()"),
         item('note_add', 'New day', 'clearAll()'),
