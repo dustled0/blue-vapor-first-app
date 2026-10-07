@@ -2160,7 +2160,7 @@
         @media (max-width: 600px) {
             .prow { grid-template-columns: minmax(0, 1fr) 76px 34px 34px; }
             .prow-name { grid-column: 1 / -1; }
-            .prow select.input-field { grid-column: 1 / 2; }
+            .prow select.input-field { grid-column: 1 / 3; }
             .products-footer { padding: 10px 16px; }
         }
 
@@ -4500,7 +4500,11 @@ function restoreBackup(event) {
         loadFromStorage();
         salesShown = transactions.reduce((s, t) => s + t.totalPrice, 0);
         invalidatePastOwes();
+        loadCatalog();
+        applyCatalog();
         renderAll();
+        filterProducts();
+        if (document.getElementById('productsModal').classList.contains('open')) renderProductsModal();
         renderBackupBanner();
         if (document.getElementById('historyModal').classList.contains('open')) showHistory();
         showToast(`Restored: ${added} day${added === 1 ? '' : 's'} added or updated`);
