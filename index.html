@@ -2130,6 +2130,27 @@
         .prow-del, .prow-restore { cursor: var(--cursor-drop); }
         .prow-del { border: 0; background: none; color: var(--text-secondary); border-radius: var(--radius-sm); padding: 4px; display: inline-flex; justify-content: center; }
         .prow-del:hover { color: var(--danger); background: var(--danger-light); }
+        .add-one, .add-many { display: flex; flex-direction: column; gap: 6px; max-width: 460px; }
+        .add-label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-top: 8px; }
+        .add-price { font-family: var(--mono); }
+        .add-msg { font-size: 0.8rem; color: var(--danger); min-height: 1.1em; }
+        .add-msg a { color: var(--primary); text-decoration: underline; cursor: var(--cursor-drop); }
+        .add-hw { display: flex; align-items: center; gap: 8px; margin: 8px 0; cursor: var(--cursor-drop); }
+        .add-hw input { accent-color: var(--hot-water); }
+        .add-one .btn, .add-many .btn { align-self: flex-start; margin-top: 8px; }
+        .add-many { max-width: none; }
+        .add-help { font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 4px; }
+        #pasteBox { width: 100%; font-family: var(--mono); font-size: 0.85rem; resize: vertical; }
+        .paste-scroll { max-height: 280px; overflow: auto; margin-top: 8px; }
+        .paste-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .paste-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .paste-line { color: var(--text-secondary); font-family: var(--mono); width: 28px; }
+        .paste-status { font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full); white-space: nowrap; }
+        .st-new { background: var(--success-light); color: var(--success); }
+        .st-exists { background: var(--primary-light); color: var(--primary); }
+        .st-same { background: var(--bg); color: var(--text-secondary); }
+        .st-problem { background: var(--danger-light); color: var(--danger); }
+        .paste-upd { display: flex; gap: 6px; align-items: center; font-family: var(--mono); cursor: var(--cursor-drop); }
         .prow-removed { margin-top: 18px; }
         .prow-removed summary { cursor: var(--cursor-drop); font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); }
         .prow-removed .prow { grid-template-columns: minmax(0, 1fr) auto; opacity: 0.85; }
@@ -4019,11 +4040,143 @@ function renderProductsModal() {
     footer.innerHTML = n === 0 ? '' : `<span>${n} change${n === 1 ? '' : 's'} not in data.js yet &middot;</span> <a role="button" tabindex="0" onclick="downloadDataJs()" onkeydown="if(event.key==='Enter')downloadDataJs()">Download data.js</a>`;
 }
 
+// ---- Add one ----
+let addDraft = { name: '', price: '', category: '', hotWater: false };
+
 function renderProductsAddOne() {
-    document.getElementById('productsContent').innerHTML = '<span class="empty-note">Coming soon</span>';
+    const cats = productCategories();
+    if (!addDraft.category || (!cats.includes(addDraft.category) && addDraft.category !== '__new__')) addDraft.category = cats.includes('Other Products') ? 'Other Products' : (cats[0] || '');
+    const opts = cats.map(c => `<option value="${esc(c)}"${c === addDraft.category ? ' selected' : ''}>${esc(c)}</option>`).join('')
+        + '<option value="__new__">New category…</option>';
+    document.getElementById('productsContent').innerHTML = `<div class="add-one">
+        <label class="add-label" for="addName">Name</label>
+        <input class="input-field" id="addName" type="text" autocomplete="off" value="${esc(addDraft.name)}" oninput="onAddDraft()">
+        <div class="add-msg" id="addDupMsg" aria-live="polite"></div>
+        <label class="add-label" for="addPrice">Price</label>
+        <input class="input-field add-price" id="addPrice" type="text" inputmode="decimal" value="${esc(addDraft.price)}" oninput="onAddDraft()" onkeydown="if(event.key==='Enter'&&!document.getElementById('addSubmit').disabled){event.preventDefault();submitAddOne()}">
+        <label class="add-label" for="addCategory">Category</label>
+        <select class="input-field" id="addCategory" onchange="onAddCategory(this)">${opts}</select>
+        <label class="add-hw"><input type="checkbox" id="addHotWater" onchange="onAddDraft()"${addDraft.hotWater ? ' checked' : ''}> Hot water</label>
+        <button class="btn btn-primary" id="addSubmit" onclick="submitAddOne()" disabled>Add product</button>
+    </div>`;
+    updateAddOne();
 }
+
+function onAddDraft() {
+    addDraft.name = document.getElementById('addName').value;
+    addDraft.price = document.getElementById('addPrice').value;
+    addDraft.hotWater = document.getElementById('addHotWater').checked;
+    updateAddOne();
+}
+
+async function onAddCategory(select) {
+    if (select.value !== '__new__') { addDraft.category = select.value; return; }
+    const answer = await modalPrompt('New Category', 'Name of the new category', '', 'category', 'text');
+    const category = answer === null ? '' : Catalog.titleCase(Catalog.cleanName(answer));
+    if (category) {
+        const existing = productCategories().find(c => c.toLowerCase() === category.toLowerCase());
+        addDraft.category = existing || category;
+        if (!existing) {
+            const opt = new Option(category, category, true, true);
+            select.insertBefore(opt, select.querySelector('option[value="__new__"]'));
+        }
+    }
+    select.value = addDraft.category;
+}
+
+function updateAddOne() {
+    const name = Catalog.cleanName(addDraft.name);
+    const dup = name && PRODUCTS.find(p => Catalog.nameKey(p.name) === Catalog.nameKey(name));
+    const msg = document.getElementById('addDupMsg');
+    if (dup) {
+        msg.innerHTML = `${esc(dup.name)} already exists &middot; <a role="button" tabindex="0" onclick="editExistingProduct(${jsArg(dup.name)})" onkeydown="if(event.key==='Enter')editExistingProduct(${jsArg(dup.name)})">Edit it</a>`;
+    } else msg.textContent = '';
+    document.getElementById('addSubmit').disabled = !name || !!dup || Catalog.parsePrice(addDraft.price) === null;
+}
+
+function editExistingProduct(name) {
+    productsQuery = name;
+    setProductsTab('all');
+}
+
+function submitAddOne() {
+    const name = Catalog.cleanName(addDraft.name);
+    const price = Catalog.parsePrice(addDraft.price);
+    if (!name || price === null || PRODUCTS.some(p => Catalog.nameKey(p.name) === Catalog.nameKey(name))) return;
+    const category = addDraft.category && addDraft.category !== '__new__' ? addDraft.category : 'Other Products';
+    const changes = Catalog.addProducts(BASE_CATALOG, catalogChanges, [{ name, price, category, hotWater: addDraft.hotWater }]);
+    addDraft = { name: '', price: '', category, hotWater: false };
+    commitCatalog(changes, `Added ${name}`);
+    const input = document.getElementById('addName');
+    if (input) input.focus();
+}
+
+// ---- Add many ----
+let pasteRows = [];
+let pasteUpdates = new Set();
+
 function renderProductsAddMany() {
-    document.getElementById('productsContent').innerHTML = '<span class="empty-note">Coming soon</span>';
+    document.getElementById('productsContent').innerHTML = `<div class="add-many">
+        <p class="add-help">One product per line: name, price, category (optional). Add <code>hw</code> as a fourth column for hot water. Paste from Excel or type with commas.</p>
+        <textarea class="input-field" id="pasteBox" rows="6" spellcheck="false" placeholder="Nova, 15, Snacks&#10;Piattos, 15, Snacks&#10;Kopiko Blanca, 10, Hot Water, hw" oninput="updatePastePreview()"></textarea>
+        <div id="pastePreview"></div>
+        <button class="btn btn-primary" id="pasteSubmit" onclick="submitAddMany()" disabled>Add 0 products</button>
+    </div>`;
+    pasteRows = [];
+    pasteUpdates = new Set();
+}
+
+function updatePastePreview() {
+    pasteRows = Catalog.parsePaste(document.getElementById('pasteBox').value, PRODUCTS, HOT_WATER_PRODUCTS);
+    pasteUpdates = new Set([...pasteUpdates].filter(i => pasteRows[i] && pasteRows[i].status === 'exists'));
+    drawPastePreview();
+}
+
+function togglePasteUpdate(i, checked) {
+    if (checked) pasteUpdates.add(i); else pasteUpdates.delete(i);
+    drawPastePreview();
+}
+
+function drawPastePreview() {
+    const diffText = d => [
+        d.price !== undefined ? `&#8369;${(PRODUCTS.find(p => Catalog.nameKey(p.name) === Catalog.nameKey(d.__name)) || {}).price} &rarr; &#8369;${d.price}` : '',
+        d.category !== undefined ? `to ${esc(d.category)}` : '',
+        d.hotWater !== undefined ? (d.hotWater ? 'hot water on' : 'hot water off') : ''
+    ].filter(Boolean).join(', ');
+    const rows = pasteRows.map((r, i) => {
+        let chip, detail = '';
+        if (r.status === 'new') { chip = '<span class="paste-status st-new">New</span>'; detail = `&#8369;${r.price} &middot; ${esc(r.category)}${r.hotWater ? ' &middot; hot water' : ''}`; }
+        else if (r.status === 'exists') {
+            chip = '<span class="paste-status st-exists">Exists</span>';
+            detail = `<label class="paste-upd"><input type="checkbox"${pasteUpdates.has(i) ? ' checked' : ''} onchange="togglePasteUpdate(${i}, this.checked)"> Update: ${diffText({ ...r.diff, __name: r.name })}</label>`;
+        } else if (r.status === 'same') { chip = '<span class="paste-status st-same">Same</span>'; detail = 'No change'; }
+        else { chip = '<span class="paste-status st-problem">Problem</span>'; detail = esc(r.reason || ''); }
+        return `<tr><td class="paste-line">${r.line}</td><td>${esc(r.name || r.raw)}</td><td>${chip}</td><td>${detail}</td></tr>`;
+    }).join('');
+    document.getElementById('pastePreview').innerHTML = rows ? `<div class="paste-scroll"><table class="paste-table"><tbody>${rows}</tbody></table></div>` : '';
+    const n = pasteRows.filter(r => r.status === 'new').length;
+    const m = pasteUpdates.size;
+    const btn = document.getElementById('pasteSubmit');
+    btn.textContent = `Add ${n} product${n === 1 ? '' : 's'}${m ? ` · Update ${m}` : ''}`;
+    btn.disabled = n === 0 && m === 0;
+}
+
+function submitAddMany() {
+    const adds = pasteRows.filter(r => r.status === 'new').map(r => ({ name: r.name, price: r.price, category: r.category, hotWater: r.hotWater }));
+    const updates = pasteRows.filter((r, i) => pasteUpdates.has(i));
+    if (!adds.length && !updates.length) return;
+    let changes = Catalog.addProducts(BASE_CATALOG, catalogChanges, adds);
+    updates.forEach(r => { changes = Catalog.editProduct(BASE_CATALOG, changes, r.name, r.diff); });
+    const n = adds.length, m = updates.length;
+    const message = m === 0 ? `Added ${n} product${n === 1 ? '' : 's'}`
+        : n === 0 ? `Updated ${m} product${m === 1 ? '' : 's'}`
+        : `Added ${n}, updated ${m} products`;
+    pasteRows = [];
+    pasteUpdates = new Set();
+    commitCatalog(changes, message);
+    const box = document.getElementById('pasteBox');
+    if (box) box.value = '';
+    updatePastePreview();
 }
 
 function productCategories() {
