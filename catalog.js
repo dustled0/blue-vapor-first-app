@@ -27,6 +27,18 @@
         return String(s).trim().replace(/\s+/g, ' ').toLowerCase().replace(/(^|\s)\S/g, m => m.toUpperCase());
     }
 
+    // Cleans a category and reuses the spelling of an existing one (case-insensitive); only new ones are title-cased
+    function cleanCategory(raw, known) {
+        const c = cleanName(raw);
+        if (!c) return '';
+        const hit = (known || []).find(k => String(k).toLowerCase() === c.toLowerCase());
+        return hit !== undefined ? hit : titleCase(c);
+    }
+
+    function knownCategories(base, changes) {
+        return base.products.map(p => p.category).concat(build(base, changes).products.map(p => p.category));
+    }
+
     function emptyChanges() {
         return { added: [], edited: {}, removed: [] };
     }
@@ -138,11 +150,22 @@
     function addProducts(base, changes, items) {
         const out = clone(changes);
         const keys = new Set(build(base, changes).products.map(p => nameKey(p.name)));
+        const known = knownCategories(base, changes);
+        const baseByKey = baseState(base);
         items.forEach(it => {
             const key = nameKey(it.name);
             if (keys.has(key)) return;
             keys.add(key);
-            out.added.push({ name: cleanName(it.name), price: it.price, category: it.category, hotWater: !!it.hotWater });
+            const category = cleanCategory(it.category, known) || OTHER;
+            const b = baseByKey.get(key);
+            if (b && out.removed.some(n => nameKey(n) === key)) {
+                // A removed base product: restore it, keeping only the fields that differ from the base
+                out.removed = out.removed.filter(n => nameKey(n) !== key);
+                const diff = pickDiff({ price: it.price, category, hotWater: !!it.hotWater }, b);
+                if (Object.keys(diff).length) out.edited[b.name] = diff;
+                return;
+            }
+            out.added.push({ name: cleanName(it.name), price: it.price, category, hotWater: !!it.hotWater });
         });
         return out;
     }
@@ -150,6 +173,10 @@
     function editProduct(base, changes, name, fields) {
         const out = clone(changes);
         const key = nameKey(name);
+        if (fields.category !== undefined) {
+            fields = Object.assign({}, fields, { category: cleanCategory(fields.category, knownCategories(base, changes)) });
+            if (!fields.category) delete fields.category;
+        }
         const a = out.added.find(x => nameKey(x.name) === key);
         if (a) {
             FIELDS.forEach(f => { if (fields[f] !== undefined) a[f] = fields[f]; });
@@ -194,21 +221,26 @@
         return changes.added.length + Object.keys(changes.edited).length + changes.removed.length;
     }
 
-    function parsePaste(text, products, hotWater) {
+    function parsePaste(text, products, hotWater, removed) {
         const hw = new Set(hotWater);
         const existing = new Map();
         products.forEach(p => existing.set(nameKey(p.name), { price: p.price, category: titleCase(p.category), hotWater: hw.has(p.name) }));
+        const removedKeys = new Set((removed || []).map(p => nameKey(p.name)));
+        const known = products.map(p => p.category);
         const seen = new Set();
         const rows = [];
         String(text == null ? '' : text).split(/\r?\n/).forEach((raw, i) => {
             if (!raw.trim()) return;
-            const cells = (raw.includes('\t') ? raw.split('\t') : raw.split(',')).map(c => c.trim());
+            const tabbed = raw.includes('\t');
+            const cells = (tabbed ? raw.split('\t') : raw.split(',')).map(c => c.trim());
             const name = cleanName(cells[0]);
             const price = parsePrice(cells[1]);
-            const category = cells[2] ? titleCase(cells[2]) : OTHER;
+            const category = cleanCategory(cells[2], known) || OTHER;
+            const commaPrice = !tabbed && (cells.length >= 5 || /^\d+$/.test(cells[2] || ''));
             const hot = /^hw$/i.test(cells[3] || '');
             const row = { line: i + 1, raw, name, price, category, hotWater: hot, status: 'new' };
             if (!name) { row.status = 'problem'; row.reason = 'Missing name'; }
+            else if (commaPrice) { row.status = 'problem'; row.reason = 'Use tabs when a price has commas'; }
             else if (price === null) { row.status = 'problem'; row.reason = 'Price must be a number above 0'; }
             else if (seen.has(nameKey(name))) { row.status = 'problem'; row.reason = 'Listed twice'; }
             else {
@@ -221,7 +253,7 @@
                     if (cur.hotWater !== hot) diff.hotWater = hot;
                     if (Object.keys(diff).length) { row.status = 'exists'; row.diff = diff; }
                     else row.status = 'same';
-                }
+                } else if (removedKeys.has(nameKey(name))) row.restore = true;
             }
             rows.push(row);
         });
@@ -262,7 +294,7 @@
     }
 
     const Catalog = {
-        cleanName, nameKey, parsePrice, titleCase, emptyChanges, sortProducts,
+        cleanName, cleanCategory, nameKey, parsePrice, titleCase, emptyChanges, sortProducts,
         build, addProducts, editProduct, removeProduct, restoreProduct, resetProduct, changeCount,
         parsePaste, toDataJs
     };

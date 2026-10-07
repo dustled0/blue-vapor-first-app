@@ -2649,10 +2649,26 @@ function loadCatalog() {
         if (!ok) throw new Error('bad shape');
         catalogChanges = c;
     } catch (e) {
-        catalogCorrupt = true;
-        // Keep the unreadable value (it may be recoverable); applyCatalog leaves the stored key alone
-        const BACKUP_KEY = `${CATALOG_KEY}-corrupt-backup`;
-        if (localStorage.getItem(BACKUP_KEY) === null) localStorage.setItem(BACKUP_KEY, raw);
+        markCatalogCorrupt(raw);
+    }
+}
+
+function markCatalogCorrupt(raw) {
+    catalogCorrupt = true;
+    catalogChanges = Catalog.emptyChanges();
+    // Keep the unreadable value (it may be recoverable); applyCatalog leaves the stored key alone
+    const BACKUP_KEY = `${CATALOG_KEY}-corrupt-backup`;
+    if (raw !== null && localStorage.getItem(BACKUP_KEY) === null) localStorage.setItem(BACKUP_KEY, raw);
+}
+
+// Load + apply; stored changes with a valid shape but bad entries fall back like unreadable JSON
+function startCatalog() {
+    loadCatalog();
+    try {
+        applyCatalog();
+    } catch (e) {
+        markCatalogCorrupt(localStorage.getItem(CATALOG_KEY));
+        applyCatalog();
     }
 }
 
@@ -2996,7 +3012,7 @@ function renderProducts() {
             const header = document.createElement('div');
             header.className = 'category-header';
             header.dataset.category = currentCategory.toLowerCase();
-            header.innerHTML = `<h2>${currentCategory}</h2><div class="line"></div><span class="count">${catCount}</span>`;
+            header.innerHTML = `<h2>${esc(currentCategory)}</h2><div class="line"></div><span class="count">${catCount}</span>`;
             container.appendChild(header);
         }
 
@@ -4072,9 +4088,9 @@ function onAddDraft() {
 async function onAddCategory(select) {
     if (select.value !== '__new__') { addDraft.category = select.value; return; }
     const answer = await modalPrompt('New Category', 'Name of the new category', '', 'category', 'text');
-    const category = answer === null ? '' : Catalog.titleCase(Catalog.cleanName(answer));
+    const category = answer === null ? '' : Catalog.cleanCategory(answer, knownCategories());
     if (category) {
-        const existing = productCategories().find(c => c.toLowerCase() === category.toLowerCase());
+        const existing = productCategories().find(c => c === category);
         addDraft.category = existing || category;
         if (!existing) {
             const opt = new Option(category, category, true, true);
@@ -4090,6 +4106,9 @@ function updateAddOne() {
     const msg = document.getElementById('addDupMsg');
     if (dup) {
         msg.innerHTML = `${esc(dup.name)} already exists &middot; <a role="button" tabindex="0" onclick="editExistingProduct(${jsArg(dup.name)})" onkeydown="if(event.key==='Enter')editExistingProduct(${jsArg(dup.name)})">Edit it</a>`;
+    } else if (name && catalogRemoved.some(p => Catalog.nameKey(p.name) === Catalog.nameKey(name))) {
+        const r = catalogRemoved.find(p => Catalog.nameKey(p.name) === Catalog.nameKey(name));
+        msg.textContent = `${r.name} was removed earlier. Adding it restores it.`;
     } else msg.textContent = '';
     document.getElementById('addSubmit').disabled = !name || !!dup || Catalog.parsePrice(addDraft.price) === null;
 }
@@ -4127,7 +4146,7 @@ function renderProductsAddMany() {
 }
 
 function updatePastePreview() {
-    pasteRows = Catalog.parsePaste(document.getElementById('pasteBox').value, PRODUCTS, HOT_WATER_PRODUCTS);
+    pasteRows = Catalog.parsePaste(document.getElementById('pasteBox').value, PRODUCTS, HOT_WATER_PRODUCTS, catalogRemoved);
     const existsKeys = new Set(pasteRows.filter(r => r.status === 'exists').map(r => Catalog.nameKey(r.name)));
     pasteUpdates = new Set([...pasteUpdates].filter(k => existsKeys.has(k)));
     drawPastePreview();
@@ -4147,7 +4166,7 @@ function drawPastePreview() {
     ].filter(Boolean).join(', ');
     const rows = pasteRows.map((r, i) => {
         let chip, detail = '';
-        if (r.status === 'new') { chip = '<span class="paste-status st-new">New</span>'; detail = `&#8369;${r.price} &middot; ${esc(r.category)}${r.hotWater ? ' &middot; hot water' : ''}`; }
+        if (r.status === 'new') { chip = `<span class="paste-status st-new">${r.restore ? 'Restore' : 'New'}</span>`; detail = `&#8369;${r.price} &middot; ${esc(r.category)}${r.hotWater ? ' &middot; hot water' : ''}`; }
         else if (r.status === 'exists') {
             chip = '<span class="paste-status st-exists">Exists</span>';
             detail = `<label class="paste-upd"><input type="checkbox"${pasteUpdates.has(Catalog.nameKey(r.name)) ? ' checked' : ''} onchange="togglePasteUpdate(${i}, this.checked)"> Update: ${diffText({ ...r.diff, __name: r.name })}</label>`;
@@ -4179,6 +4198,11 @@ function submitAddMany() {
     const box = document.getElementById('pasteBox');
     if (box) box.value = '';
     updatePastePreview();
+}
+
+// Current categories plus data.js ones, so a re-typed category keeps its original spelling
+function knownCategories() {
+    return productCategories().concat(BASE_CATALOG.products.map(p => p.category));
 }
 
 function productCategories() {
@@ -4254,12 +4278,12 @@ async function onProductCategory(name, select) {
     let category = select.value;
     if (category === '__new__') {
         const answer = await modalPrompt('New Category', 'Name of the new category', '', 'category', 'text');
-        category = answer === null ? '' : Catalog.titleCase(Catalog.cleanName(answer));
+        category = answer === null ? '' : Catalog.cleanCategory(answer, knownCategories());
         if (!category) { renderProductsModal(); return; }
     }
     const current = PRODUCTS.find(p => p.name === name);
     if (!current || category === current.category) { renderProductsModal(); return; }
-    commitCatalog(Catalog.editProduct(BASE_CATALOG, catalogChanges, name, { category: Catalog.titleCase(category) }), `Moved ${name} to ${category}`);
+    commitCatalog(Catalog.editProduct(BASE_CATALOG, catalogChanges, name, { category }), `Moved ${name} to ${category}`);
 }
 
 function onProductHotWater(name, checkbox) {
@@ -4500,8 +4524,7 @@ function restoreBackup(event) {
         loadFromStorage();
         salesShown = transactions.reduce((s, t) => s + t.totalPrice, 0);
         invalidatePastOwes();
-        loadCatalog();
-        applyCatalog();
+        startCatalog();
         renderAll();
         filterProducts();
         if (document.getElementById('productsModal').classList.contains('open')) renderProductsModal();
@@ -4684,8 +4707,7 @@ function splashBrand(el) {
 }
 
 // ============ INIT ============
-loadCatalog();
-applyCatalog();
+startCatalog();
 migrateUtcDates();
 loadFromStorage();
 salesShown = transactions.reduce((s, t) => s + t.totalPrice, 0);
@@ -4698,7 +4720,7 @@ renderAutoSave();
 AutoSave.restore();
 loadDarkMode();
 renderAll();
-if (catalogCorrupt) showToast('Saved product changes could not be read. Using data.js.', 'undo');
+if (catalogCorrupt) showToast('Saved product changes could not be read. Using data.js.');
 initHeaderWater();
 initSalesBubbles();
 initPageWater();

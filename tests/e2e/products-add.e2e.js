@@ -80,6 +80,29 @@ const openTab = async (page, label) => {
         check('winston updated to 12', await price(page, 'Winston') === 12);
         check('milo hot water unchanged', await page.evaluate(() => HOT_WATER_PRODUCTS.includes('Milo')));
 
+        // Final fix 1: re-adding a removed base product restores it (C2 was removed above)
+        check('c2 still removed', await page.locator('.product-card[data-name="c2"]').count() === 0);
+        await page.evaluate(() => setProductsTab('many'));
+        await page.locator('#pasteBox').fill('c2, 16, Drinks');
+        const rst = await page.locator('#pastePreview .paste-status').textContent();
+        check('paste chip says Restore', rst.trim() === 'Restore', rst);
+        check('paste count Add 1', (await page.locator('#pasteSubmit').textContent()).trim() === 'Add 1 product');
+        await page.evaluate(() => setProductsTab('one'));
+        await page.locator('#addName').fill('C2');
+        await page.locator('#addPrice').fill('16');
+        check('restore message', (await page.locator('#addDupMsg').textContent()).includes('Adding it restores it'));
+        check('restore enabled', !(await page.locator('#addSubmit').isDisabled()));
+        await page.locator('#addSubmit').click();
+        check('c2 card back', await page.locator('.product-card[data-name="c2"]').count() === 1);
+        check('c2 at 16', await price(page, 'C2') === 16);
+        check('c2 no longer removed', await page.evaluate(() => catalogRemoved.every(p => p.name !== 'C2') && catalogChanges.added.every(a => a.name !== 'C2')));
+
+        // Final fix 2: category text is escaped on the selling screen
+        await page.evaluate(() => commitCatalog(Catalog.addProducts(BASE_CATALOG, catalogChanges, [{ name: 'Lays', price: 9, category: 'Snacks & Chips' }]), 'x'));
+        const hdr = await page.locator('#productList .category-header[data-category="snacks & chips"] h2').textContent();
+        check('category header text exact', hdr === 'Snacks & Chips', hdr);
+        check('no img in category header', await page.locator('#productList .category-header img').count() === 0);
+
         // apostrophe
         await page.evaluate(() => commitCatalog(Catalog.addProducts(BASE_CATALOG, catalogChanges, [{ name: "Lola's Pandesal", price: 5, category: 'Other Products' }]), 'x'));
         await page.locator('.product-card[data-name="lola\'s pandesal"] .quick-add').evaluate(e => e.click());

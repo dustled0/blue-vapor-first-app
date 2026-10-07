@@ -26,12 +26,30 @@ const { withPage, check, finish, URL } = require('./helpers');
         await page.reload();
         await page.waitForSelector('.toast.show');
         const count = await page.evaluate(() => PRODUCTS.length);
-        check('corrupt data falls back to data.js', count === 58, String(count));
+        const baseCount = await page.evaluate(() => BASE_CATALOG.products.length);
+        check('corrupt data falls back to data.js', count === baseCount, `${count} vs ${baseCount}`);
         const toast = await page.locator('#toast').textContent();
         check('corrupt data toast', toast.includes('could not be read'), toast);
 
         const backup = await page.evaluate(() => localStorage.getItem('honesty-store-catalog-corrupt-backup'));
         check('corrupt value backed up', backup === '{not json', String(backup));
+
+        // Valid top-level shape but bad entries must fall back the same way
+        const errors = [];
+        page.on('pageerror', e => errors.push(String(e)));
+        await page.evaluate(() => {
+            localStorage.removeItem('honesty-store-catalog-corrupt-backup');
+            localStorage.setItem('honesty-store-catalog', JSON.stringify({ added: [], edited: { Milo: null }, removed: [] }));
+        });
+        await page.reload();
+        await page.waitForSelector('.toast.show');
+        const shown = await page.locator('#productList .product-card').count();
+        const baseCount2 = await page.evaluate(() => BASE_CATALOG.products.length);
+        check('bad entries render base products', shown === baseCount2, `${shown} vs ${baseCount2}`);
+        check('bad entries toast', (await page.locator('#toast').textContent()).includes('could not be read'));
+        check('bad entries backed up', await page.evaluate(() => localStorage.getItem('honesty-store-catalog-corrupt-backup')) === '{"added":[],"edited":{"Milo":null},"removed":[]}');
+        check('bad entries toast is not undo', !(await page.locator('#toast').evaluate(e => e.className)).includes('undo'));
+        check('no page errors', errors.length === 0, errors.join('|'));
 
         await page.evaluate(() => localStorage.removeItem('honesty-store-catalog'));
         await page.reload();

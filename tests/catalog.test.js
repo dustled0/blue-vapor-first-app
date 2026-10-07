@@ -212,3 +212,64 @@ test('new categories go after base categories, before Other Products', () => {
     ], ['Cigarettes', 'Drinks']);
     assert.deepEqual(sorted.map(p => p.name), ['w', 'z', 'x', 'y']);
 });
+
+const cobraBase = {
+    products: [
+        { name: 'Cobra', price: 18, category: 'Drinks' },
+        { name: 'C2', price: 15, category: 'Drinks' },
+        { name: 'Bbq Chips', price: 5, category: 'BBQ' }
+    ],
+    hotWater: []
+};
+
+test('addProducts restores a removed base product instead of adding', () => {
+    const removed = Catalog.removeProduct(cobraBase, Catalog.emptyChanges(), 'Cobra');
+    const out = Catalog.addProducts(cobraBase, removed, [{ name: 'cobra', price: 20, category: 'Drinks', hotWater: false }]);
+    const b = Catalog.build(cobraBase, out);
+    assert.equal(b.products.find(p => p.name === 'Cobra').price, 20);
+    assert.deepEqual(out.removed, []);
+    assert.deepEqual(out.added, []);
+    assert.deepEqual(out.edited, { Cobra: { price: 20 } });
+});
+
+test('restoring with identical fields records no edit', () => {
+    const removed = Catalog.removeProduct(cobraBase, Catalog.emptyChanges(), 'Cobra');
+    const out = Catalog.addProducts(cobraBase, removed, [{ name: 'Cobra', price: 18, category: 'drinks', hotWater: false }]);
+    assert.deepEqual(out, Catalog.emptyChanges());
+});
+
+test('parsePaste strips HTML characters from the category', () => {
+    const rows = Catalog.parsePaste('Foo, 5, <img src=x onerror=alert(1)>', base.products, base.hotWater);
+    assert.ok(!/[<>]/.test(rows[0].category), rows[0].category);
+});
+
+test('addProducts and editProduct clean the category', () => {
+    const a = Catalog.addProducts(base, Catalog.emptyChanges(), [{ name: 'Foo', price: 5, category: '<b>snacks</b>', hotWater: false }]);
+    assert.ok(!/[<>]/.test(a.added[0].category));
+    const e = Catalog.editProduct(base, Catalog.emptyChanges(), 'Winston', { category: '<i>x</i>' });
+    assert.ok(!/[<>]/.test(e.edited.Winston.category));
+});
+
+test('existing categories keep their spelling (case-insensitive match)', () => {
+    const rows = Catalog.parsePaste('X, 5, bbq', cobraBase.products, []);
+    assert.equal(rows[0].category, 'BBQ');
+    const a = Catalog.addProducts(cobraBase, Catalog.emptyChanges(), [{ name: 'X', price: 5, category: 'bbq', hotWater: false }]);
+    assert.equal(a.added[0].category, 'BBQ');
+});
+
+test('parsePaste flags a thousands separator in comma lines', () => {
+    for (const line of ['Item, 1,200, Cat', 'Item, 1,200, Cat, hw']) {
+        const r = Catalog.parsePaste(line, base.products, base.hotWater)[0];
+        assert.equal(r.status, 'problem', line);
+        assert.equal(r.reason, 'Use tabs when a price has commas');
+    }
+    assert.equal(Catalog.parsePaste('Item\t1,200\tCat', base.products, base.hotWater)[0].price, 1200);
+});
+
+test('parsePaste marks rows matching removed base products as restore', () => {
+    const removed = [{ name: 'Cobra', price: 18, category: 'Drinks' }];
+    const rows = Catalog.parsePaste('cobra, 20, Drinks\nZed, 5', base.products, [], removed);
+    assert.equal(rows[0].status, 'new');
+    assert.equal(rows[0].restore, true);
+    assert.equal(rows[1].restore, undefined);
+});
