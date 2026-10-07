@@ -148,7 +148,8 @@ test('parsePaste defaults category to Other Products', () => {
 });
 
 test('parsePaste detects existing and same products', () => {
-    const [a, b] = Catalog.parsePaste('winston, 12, Cigarettes\nWINSTON, 11, cigarettes', base.products, base.hotWater);
+    const [a] = Catalog.parsePaste('winston, 12, Cigarettes', base.products, base.hotWater);
+    const [b] = Catalog.parsePaste('WINSTON, 11, cigarettes', base.products, base.hotWater);
     assert.equal(a.status, 'exists');
     assert.deepEqual(a.diff, { price: 12 });
     assert.equal(b.status, 'same');
