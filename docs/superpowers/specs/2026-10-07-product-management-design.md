@@ -30,7 +30,7 @@ Let the store owner manage the product catalog from inside the app instead of ha
 ### Assumptions (confirmed implicitly by approval)
 
 - Product **names are not editable**. Sales are matched to products by name; to fix a typo, remove and re-add.
-- Categories: pick an existing one or type a new one. Categories sort A–Z with "Other Products" last; products sort A–Z within a category (same rule `data.js` follows today).
+- Categories: pick an existing one or type a new one. Categories keep the order they first appear in base `data.js`, new categories follow A–Z, "Other Products" is last; products sort A–Z within a category.
 - Hot water is a yes/no switch per product using the default fee (`HOT_WATER_FEE`, ₱5). Per-name overrides in `HOT_WATER_FEE_OVERRIDES` keep applying.
 - Removing a product only hides it from selling. History, summaries, and exports keep its past sales at the price sold.
 
@@ -58,7 +58,7 @@ Runs at load and after every catalog change:
 2. Apply `edited` field overrides by name.
 3. Drop names in `removed`.
 4. Append `added` products.
-5. Sort: categories A–Z with "Other Products" last; products A–Z within each category.
+5. Sort: categories in the order they first appear in base `data.js`, new categories after them A–Z, "Other Products" last; products A–Z within each category.
 6. Refill the existing globals `PRODUCTS` (array of `{ name, price, category }`) and `HOT_WATER_PRODUCTS` (array of names) **in place** (`arr.length = 0; arr.push(...)`), so all current code (selling, summary, history, Excel, Top today, insights) keeps working unchanged.
 
 `data.js` keeps declaring them with `const`; arrays declared `const` can still be emptied and refilled, so no declaration change is needed and any older copy of `data.js` keeps working. The base copies are deep-cloned once at startup, before the first `buildCatalog()`.
@@ -140,7 +140,7 @@ Every catalog change calls `buildCatalog()` then `renderAll()` (and re-applies t
 
 Run in a real browser (headless Chrome via Playwright, as with previous features):
 
-1. Add one product → sellable at once, correct category and A–Z position, appears in Summary and the Excel export.
+1. Add one product → sellable at once, correct category and sorted position, appears in Summary and the Excel export.
 2. Paste a mixed list (new, existing-with-different-price, invalid price, duplicate within paste) → preview statuses and button counts correct; save; Undo the batch restores the previous catalog.
 3. Edit a price → old transactions keep their old price; new sales use the new price.
 4. Toggle hot water on/off → the fee is applied / not applied on the next sale.
