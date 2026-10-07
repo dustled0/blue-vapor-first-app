@@ -13,6 +13,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="data.js"></script>
+    <script src="catalog.js"></script>
     <style>
         /*
          * Shape rule: cards 12px, modals 16px, controls 8px, chips / tags / search full pill.
@@ -2552,6 +2553,54 @@ let lastExportedTxCount = 0;
 
 // ============ LOCAL STORAGE ============
 const STORAGE_KEY = 'honesty-store';
+
+// ============ PRODUCT CATALOG ============
+// data.js is the base catalog; edits made in the app are stored as a small change set on top of it.
+const BASE_CATALOG = { products: PRODUCTS.map(p => ({ ...p })), hotWater: [...HOT_WATER_PRODUCTS] };
+const CATALOG_KEY = `${STORAGE_KEY}-catalog`;
+let catalogChanges = Catalog.emptyChanges();
+let catalogInfo = {};      // { [name]: 'added' | 'edited' }
+let catalogRemoved = [];   // base products currently removed
+let catalogCorrupt = false;
+
+function loadCatalog() {
+    catalogCorrupt = false;
+    catalogChanges = Catalog.emptyChanges();
+    const raw = localStorage.getItem(CATALOG_KEY);
+    if (raw === null) return;
+    try {
+        const c = JSON.parse(raw);
+        const ok = c && typeof c === 'object' && Array.isArray(c.added) && Array.isArray(c.removed)
+            && c.edited && typeof c.edited === 'object' && !Array.isArray(c.edited);
+        if (!ok) throw new Error('bad shape');
+        catalogChanges = c;
+    } catch (e) {
+        catalogCorrupt = true;
+    }
+}
+
+// Rebuilds PRODUCTS / HOT_WATER_PRODUCTS in place from data.js + saved changes
+function applyCatalog() {
+    const built = Catalog.build(BASE_CATALOG, catalogChanges);
+    PRODUCTS.splice(0, PRODUCTS.length, ...built.products);
+    HOT_WATER_PRODUCTS.splice(0, HOT_WATER_PRODUCTS.length, ...built.hotWater);
+    catalogChanges = built.changes;
+    catalogInfo = built.info;
+    catalogRemoved = built.removedBase;
+    if (Catalog.changeCount(catalogChanges) === 0) localStorage.removeItem(CATALOG_KEY);
+    else localStorage.setItem(CATALOG_KEY, JSON.stringify(catalogChanges));
+}
+
+function commitCatalog(newChanges, message) {
+    const prev = catalogChanges;
+    catalogChanges = newChanges;
+    applyCatalog();
+    renderAll();
+    filterProducts();
+    if (typeof renderProductsModal === 'function' && document.getElementById('productsModal')?.classList.contains('open')) renderProductsModal();
+    showToast(message, 'info', { label: 'Undo', onClick: () => commitCatalog(prev, 'Product change undone') });
+}
+
 // Local date (YYYY-MM-DD). toISOString() is UTC, which lags 8 hours behind PH time.
 function getLocalDate() { return getLocalDateOf(new Date()); }
 function getLocalDateOf(d) {
@@ -4268,6 +4317,8 @@ function splashBrand(el) {
 }
 
 // ============ INIT ============
+loadCatalog();
+applyCatalog();
 migrateUtcDates();
 loadFromStorage();
 salesShown = transactions.reduce((s, t) => s + t.totalPrice, 0);
@@ -4280,6 +4331,7 @@ renderAutoSave();
 AutoSave.restore();
 loadDarkMode();
 renderAll();
+if (catalogCorrupt) showToast('Saved product changes could not be read. Using data.js.', 'undo');
 initHeaderWater();
 initSalesBubbles();
 initPageWater();

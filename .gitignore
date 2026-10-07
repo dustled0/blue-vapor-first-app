@@ -10,3 +10,4 @@ skills-lock.json
 
 # Playwright e2e dependencies
 tests/e2e/node_modules/
+tests/e2e/out/
