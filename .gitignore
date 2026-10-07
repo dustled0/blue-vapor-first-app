@@ -7,3 +7,6 @@ Honesty-Store-Backup-*.json
 # Local Claude Code settings and skills
 .claude/
 skills-lock.json
+
+# Playwright e2e dependencies
+tests/e2e/node_modules/
