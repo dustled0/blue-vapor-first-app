@@ -1,0 +1,9 @@
+# Daily sales exports (customer names and balances) stay local
+inventory/
+*.xlsx
+*.json.bak
+Honesty-Store-Backup-*.json
+
+# Local Claude Code settings and skills
+.claude/
+skills-lock.json
