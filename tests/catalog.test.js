@@ -178,18 +178,19 @@ test('toDataJs round-trips and keeps layout', () => {
             { name: 'Winston', price: 11, category: 'Cigarettes' },
             { name: 'Milo', price: 10, category: 'Hot Water' }
         ],
-        hotWater: ['Milo'], customers: ['Ana', "O'Neil"], fee: 5, overrides: { Milo: 2 }
+        hotWater: ['Milo'], customers: ['Ana', "O'Neil"], fee: 5, overrides: { Milo: 2 }, cookFee: 12
     };
     const src = Catalog.toDataJs(input);
     assert.ok(src.startsWith('// ============ DATA ============'));
     assert.ok(src.includes('// Snacks (A-Z)'));
     assert.ok(src.includes('const PRODUCTS'));
-    const out = new Function(src + '; return {PRODUCTS, HOT_WATER_PRODUCTS, CUSTOMERS, HOT_WATER_FEE, HOT_WATER_FEE_OVERRIDES};')();
+    const out = new Function(src + '; return {PRODUCTS, HOT_WATER_PRODUCTS, CUSTOMERS, HOT_WATER_FEE, HOT_WATER_FEE_OVERRIDES, COOK_FEE};')();
     assert.deepEqual(out.PRODUCTS, Catalog.sortProducts(input.products));
     assert.deepEqual(out.HOT_WATER_PRODUCTS, ['Milo']);
     assert.deepEqual(out.CUSTOMERS, input.customers);
     assert.equal(out.HOT_WATER_FEE, 5);
     assert.deepEqual(out.HOT_WATER_FEE_OVERRIDES, { Milo: 2 });
+    assert.equal(out.COOK_FEE, 12);
 });
 
 test('toDataJs round-trips the real data.js category order', () => {

@@ -25,18 +25,20 @@ const PRODUCTS = [
     { name: 'Nescafe Classic Stick', price: 10, category: 'Hot Water' },
     { name: 'Nescafe Original 3 in 1', price: 10, category: 'Hot Water' },
     // Drinks (A-Z)
-    { name: 'C2', price: 15, category: 'Drinks' },
-    { name: 'Cobra', price: 25, category: 'Drinks' },
+    { name: 'C2', price: 18, category: 'Drinks' },
+    { name: 'Cobra - 330ml', price: 30, category: 'Drinks' },
     { name: 'Coke 1 liter', price: 50, category: 'Drinks' },
     { name: 'Coke 8oz', price: 15, category: 'Drinks' },
     { name: 'Lemon', price: 15, category: 'Drinks' },
     { name: 'Nature Spring', price: 15, category: 'Drinks' },
+    { name: 'Red Horse Beer', price: 130, category: 'Drinks' },
     { name: 'Royal 1 liter', price: 50, category: 'Drinks' },
     { name: 'Sprite 1 liter', price: 50, category: 'Drinks' },
     { name: 'Sting bottle', price: 20, category: 'Drinks' },
     { name: 'Sting plastic', price: 25, category: 'Drinks' },
     // Detergents (A-Z)
     { name: 'Ariel', price: 10, category: 'Detergents' },
+    { name: 'Dishwashing - XL', price: 70, category: 'Detergents' },
     { name: 'Surf', price: 10, category: 'Detergents' },
     { name: 'Wings', price: 10, category: 'Detergents' },
     // Flakes (A-Z)
@@ -44,13 +46,12 @@ const PRODUCTS = [
     { name: 'Lava Cake', price: 10, category: 'Flakes' },
     { name: 'Presto', price: 10, category: 'Flakes' },
     { name: 'Skyflakes', price: 10, category: 'Flakes' },
-
     // Noodles (A-Z)
     { name: 'Lucky Me Noodles - Beef', price: 12, category: 'Noodles' },
     { name: 'Lucky Me Noodles - Chicken', price: 12, category: 'Noodles' },
-    { name: 'Pansit Canton - Chilimansi', price: 25, category: 'Noodles' },
-    { name: 'Pansit Canton - Extra Hot Chili', price: 25, category: 'Noodles' },
-    { name: 'Pansit Canton - Kalamansi', price: 25, category: 'Noodles' },
+    { name: 'Pansit Canton - Chilimansi', price: 15, category: 'Noodles' },
+    { name: 'Pansit Canton - Extra Hot Chili', price: 15, category: 'Noodles' },
+    { name: 'Pansit Canton - Kalamansi', price: 15, category: 'Noodles' },
     // Shampoo (A-Z)
     { name: 'Cream Silk', price: 10, category: 'Shampoo' },
     { name: 'Head & Shoulders', price: 10, category: 'Shampoo' },
@@ -58,18 +59,23 @@ const PRODUCTS = [
     { name: 'Sunsilk', price: 10, category: 'Shampoo' },
     // Toothpaste (A-Z)
     { name: 'Colgate', price: 10, category: 'Toothpaste' },
+    // Dishwashing (A-Z)
+    { name: 'Dishwashing Liquid - L', price: 35, category: 'Dishwashing' },
+    { name: 'Dishwashing Liquid - S', price: 25, category: 'Dishwashing' },
     // Other Products (A-Z)
     { name: 'Ajinomoto', price: 8, category: 'Other Products' },
     { name: 'Barako', price: 10, category: 'Other Products' },
     { name: 'Bread', price: 40, category: 'Other Products' },
     { name: 'Crispy Fry', price: 22, category: 'Other Products' },
     { name: 'Datu Puti', price: 10, category: 'Other Products' },
+    { name: 'Egg', price: 15, category: 'Other Products' },
     { name: 'Energen', price: 15, category: 'Other Products' },
     { name: 'Fresh Gata', price: 40, category: 'Other Products' },
-    { name: 'Hot Water', price: 2, category: 'Other Products' },
+    { name: 'Hot Water', price: 3, category: 'Other Products' },
     { name: 'Ice', price: 5, category: 'Other Products' },
     { name: 'Knorr Cubes', price: 10, category: 'Other Products' },
     { name: 'Magic Sarap', price: 10, category: 'Other Products' },
+    { name: 'Mega Sardines', price: 28, category: 'Other Products' },
     { name: 'Nestea', price: 26, category: 'Other Products' },
     { name: 'Osyter Sauce', price: 10, category: 'Other Products' },
     { name: 'Rexona', price: 10, category: 'Other Products' },
@@ -88,3 +94,5 @@ const CUSTOMERS = [
 const HOT_WATER_FEE = 5;
 // Products whose hot water fee differs from HOT_WATER_FEE
 const HOT_WATER_FEE_OVERRIDES = { 'Malungay': 2 };
+// Extra charge per item when Noodles are cooked for the customer
+const COOK_FEE = 10;

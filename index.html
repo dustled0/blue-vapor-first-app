@@ -2883,7 +2883,7 @@ function renderDebts() {
         html += `<div class="debt-day"><span>${date === TODAY ? 'Today' : formatHistoryDate(date)}</span><span class="sub">${owed ? `&#8369;${owed.toLocaleString()} unpaid` : ''}</span></div>`;
         html += dayRows.map(({ date, id, tx }) => `<button class="debt-item${tx.paid ? ' is-paid' : ''}" onclick="toggleDebtPaid('${date}', ${id})" role="checkbox" aria-checked="${tx.paid}">
             <span class="pay-check-sm${tx.paid ? ' checked' : ''}"><span class="icon" style="font-size:14px">check</span></span>
-            <span class="what">${esc(tx.product)}${tx.hotWater ? ' <span style="color:var(--hot-water)">(+HW)</span>' : ''}<span class="when">${esc(tx.time)}</span></span>
+            <span class="what">${esc(tx.product)}${modTag(tx)}<span class="when">${esc(tx.time)}</span></span>
             <span class="qty">x${tx.qty}</span>
             <span class="amt">&#8369;${tx.totalPrice.toLocaleString()}</span>
         </button>`).join('');
@@ -3058,6 +3058,15 @@ function renderProducts() {
                         <span class="hw-label-sub">+&#8369;${hotWaterFee(prod.name)} per item</span>
                     </span>
                 </label>` : ''}
+                ${isCookable(prod) ? `<label class="hot-water-toggle" for="cook-${idx}">
+                    <span class="icon hw-icon">soup_kitchen</span>
+                    <input type="checkbox" id="cook-${idx}">
+                    <span class="hw-checkbox"><span class="icon">check</span></span>
+                    <span class="hw-label">
+                        <span class="hw-label-main">Cook it</span>
+                        <span class="hw-label-sub">+&#8369;${COOK_FEE} per item</span>
+                    </span>
+                </label>` : ''}
                 <div class="customer-grid">
                     ${CUSTOMERS.map(c => {
                         const count = custCounts[c] || 0;
@@ -3137,13 +3146,29 @@ function hotWaterFee(productName) {
     return HOT_WATER_FEE_OVERRIDES[productName] ?? HOT_WATER_FEE;
 }
 
+// Noodles can be cooked for COOK_FEE per item (off by default)
+function isCookable(prod) {
+    return prod.category === 'Noodles';
+}
+
+// Modifier suffix for a transaction, e.g. " (+HW)" or " (+Cook)"
+function modText(t) {
+    return (t.hotWater ? ' (+HW)' : '') + (t.cooked ? ' (+Cook)' : '');
+}
+
+function modTag(t) {
+    return (t.hotWater ? ' <span style="color:var(--hot-water)">(+HW)</span>' : '') + (t.cooked ? ' <span style="color:var(--hot-water)">(+Cook)</span>' : '');
+}
+
 function addTransaction(productName, unitPrice, customer, qty, isHotWater, idx) {
     let hotWater = false;
     if (isHotWater) {
         const hwCheckbox = document.getElementById('hw-' + idx);
         hotWater = hwCheckbox ? hwCheckbox.checked : false;
     }
-    const effectivePrice = unitPrice + (hotWater ? hotWaterFee(productName) : 0);
+    const cookCheckbox = document.getElementById('cook-' + idx);
+    const cooked = !!(cookCheckbox && cookCheckbox.checked);
+    const effectivePrice = unitPrice + (hotWater ? hotWaterFee(productName) : 0) + (cooked ? COOK_FEE : 0);
     const totalPrice = effectivePrice * qty;
 
     transactions.push({
@@ -3155,6 +3180,7 @@ function addTransaction(productName, unitPrice, customer, qty, isHotWater, idx) 
         unitPrice: effectivePrice,
         paid: false,
         hotWater,
+        ...(cooked ? { cooked } : {}),
         totalPrice
     });
 
@@ -3165,7 +3191,7 @@ function addTransaction(productName, unitPrice, customer, qty, isHotWater, idx) 
     saleSplash = true;
     renderAll();
     const newId = txIdCounter;
-    showToast(`${customer} bought ${qty}x ${productName}${hotWater ? ' (+HW)' : ''} · ₱${totalPrice}`, 'info', { label: 'Undo', onClick: () => removeTransaction(newId) });
+    showToast(`${customer} bought ${qty}x ${productName}${modText({ hotWater, cooked })} · ₱${totalPrice}`, 'info', { label: 'Undo', onClick: () => removeTransaction(newId) });
     // In "Selling to" mode keep the place in the product list for the next tap
     if (!sellTo) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -3262,7 +3288,7 @@ function renderLog() {
         : recent.map(t => `<tr${t.id === newLogTxId ? ' class="tx-new"' : ''} style="${t.paid ? 'opacity:0.6' : ''}">
             <td>${t.time}</td>
             <td>${esc(t.customer)}</td>
-            <td>${esc(t.product)}${t.hotWater ? ' <span style="color:var(--hot-water)">(+HW)</span>' : ''}</td>
+            <td>${esc(t.product)}${modTag(t)}</td>
             <td>${t.qty}</td>
             <td style="font-weight:700;color:var(--text)">&#8369;${t.totalPrice}</td>
             <td><button class="pay-check-sm${t.paid ? ' checked' : ''}" onclick="toggleTxPaid(${t.id})" title="${t.paid ? 'Paid' : 'Unpaid'}"><span class="icon" style="font-size:14px">check</span></button></td>
@@ -3374,7 +3400,7 @@ function renderSummaryContent() {
         data.items.forEach((t, i) => {
             html += `<tr>
                 <td>${i === 0 ? `<strong style="color:var(--text)">${esc(customer)}</strong>` : ''}</td>
-                <td>${esc(t.product)}${t.hotWater ? ' <span style="color:var(--hot-water)">(+HW)</span>' : ''}</td>
+                <td>${esc(t.product)}${modTag(t)}</td>
                 <td>${t.qty}</td>
                 <td>&#8369;${t.unitPrice}</td>
                 <td style="font-weight:700">&#8369;${t.totalPrice}</td>
@@ -3543,7 +3569,7 @@ function viewHistoryDate(date, view = 'all') {
     html += `<div class="summary-tabs">${tab('all', 'All')}${tab('az', 'Customer A-Z', ' tab-sort')}${tab(':paid', 'Paid', ' tab-paid')}${tab(':unpaid', 'Unpaid', ' tab-unpaid')}${customers.map(c => tab(c, c)).join('')}</div>`;
     html += '<table><thead><tr><th>Time</th><th>Customer</th><th>Product</th><th>Qty</th><th>Total</th><th>Paid</th></tr></thead><tbody>';
     txs.forEach(t => {
-        html += `<tr><td>${t.time}</td><td style="font-weight:600;color:var(--text)">${esc(t.customer)}</td><td>${esc(t.product)}${t.hotWater ? ' (+HW)' : ''}</td><td>${t.qty}</td><td style="font-weight:700">&#8369;${t.totalPrice}</td><td>${t.paid ? '<span class="summary-paid">Paid</span>' : '<span class="summary-unpaid">Unpaid</span>'}</tr>`;
+        html += `<tr><td>${t.time}</td><td style="font-weight:600;color:var(--text)">${esc(t.customer)}</td><td>${esc(t.product + modText(t))}</td><td>${t.qty}</td><td style="font-weight:700">&#8369;${t.totalPrice}</td><td>${t.paid ? '<span class="summary-paid">Paid</span>' : '<span class="summary-unpaid">Unpaid</span>'}</tr>`;
     });
     html += '</tbody></table>';
     if (txs.length === 0) html += `<p class="empty-note" style="margin-top:12px">No ${view === ':paid' ? 'paid' : 'unpaid'} transactions for this day.</p>`;
@@ -3588,7 +3614,7 @@ function exportTransactions(txs, filename) {
 // Build the 3-sheet styled workbook (Transactions, By Customer, By Product)
 function buildWorkbook(txs) {
     const txData = [['Date/Time', 'Customer', 'Product', 'Qty', 'Unit Price', 'Total Price']];
-    txs.forEach(t => txData.push([t.time, t.customer, t.product + (t.hotWater ? ' (+HW)' : ''), t.qty, t.unitPrice, t.totalPrice]));
+    txs.forEach(t => txData.push([t.time, t.customer, t.product + modText(t), t.qty, t.unitPrice, t.totalPrice]));
     txData.push([]);
     txData.push(['', '', '', '', 'GRAND TOTAL:', txs.reduce((s, t) => s + t.totalPrice, 0)]);
 
@@ -3601,7 +3627,7 @@ function buildWorkbook(txs) {
         const custTotal = ct[c].reduce((s, t) => s + t.totalPrice, 0);
         const custPaid = ct[c].filter(t => t.paid).reduce((s, t) => s + t.totalPrice, 0);
         const custUnpaid = custTotal - custPaid;
-        ct[c].forEach(t => summaryData.push([c, t.product + (t.hotWater ? ' (+HW)' : ''), t.qty, t.unitPrice, t.totalPrice, t.paid ? 'Yes' : 'No']));
+        ct[c].forEach(t => summaryData.push([c, t.product + modText(t), t.qty, t.unitPrice, t.totalPrice, t.paid ? 'Yes' : 'No']));
         summaryData.push(['', '', '', c + ' Total:', custTotal, custUnpaid === 0 ? 'Yes' : 'No']);
         totalPaid += custPaid;
         totalUnpaid += custUnpaid;
@@ -4289,7 +4315,7 @@ function resetEditedProduct(name) {
 
 function downloadDataJs() {
     const order = [...new Set(BASE_CATALOG.products.map(p => p.category))];
-    const text = Catalog.toDataJs({ products: PRODUCTS, hotWater: HOT_WATER_PRODUCTS, customers: CUSTOMERS, fee: HOT_WATER_FEE, overrides: HOT_WATER_FEE_OVERRIDES, categoryOrder: order });
+    const text = Catalog.toDataJs({ products: PRODUCTS, hotWater: HOT_WATER_PRODUCTS, customers: CUSTOMERS, fee: HOT_WATER_FEE, overrides: HOT_WATER_FEE_OVERRIDES, cookFee: COOK_FEE, categoryOrder: order });
     const url = URL.createObjectURL(new Blob([text], { type: 'text/javascript' }));
     const a = document.createElement('a');
     a.href = url;
