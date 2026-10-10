@@ -289,6 +289,8 @@
             'const HOT_WATER_FEE = ' + data.fee + ';',
             '// Products whose hot water fee differs from HOT_WATER_FEE',
             'const HOT_WATER_FEE_OVERRIDES = { ' + Object.keys(data.overrides).map(k => q(k) + ': ' + data.overrides[k]).join(', ') + ' };',
+            '// Extra charge per item when Noodles are cooked for the customer',
+            'const COOK_FEE = ' + (data.cookFee ?? 10) + ';',
             '');
         return out.join('\n');
     }
